@@ -1,4 +1,4 @@
-﻿using EventManagement.Infrastructure.Repository;
+﻿using EventManagement.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventManagement.Api.Controller
@@ -14,7 +14,7 @@ namespace EventManagement.Api.Controller
             _eventRepository = eventRepository;
         }
 
-        // Get: api/events
+        // GET: api/events
         [HttpGet]
         public async Task<IActionResult> GetPublicEvents()
         {
@@ -22,7 +22,7 @@ namespace EventManagement.Api.Controller
             return Ok(events);
         }
 
-        // Get: api/events/5
+        // GET: api/events/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetEventById(int id)
         {

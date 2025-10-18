@@ -1,5 +1,8 @@
 using EventManagement.Api.Middleware;
+using EventManagement.Application.Interfaces;
+using EventManagement.Application.Services;
 using EventManagement.Infrastructure;
+using EventManagement.Infrastructure.Interfaces;
 using EventManagement.Infrastructure.Repository;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +19,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IEventService, EventService>();
 
 var app = builder.Build();
 

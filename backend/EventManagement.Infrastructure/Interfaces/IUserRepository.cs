@@ -1,6 +1,6 @@
 ﻿using EventManagement.Domain.Entities;
 
-namespace EventManagement.Infrastructure.Repository
+namespace EventManagement.Infrastructure.Interfaces
 {
     public interface IUserRepository
     {

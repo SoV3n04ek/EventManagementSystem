@@ -9,9 +9,9 @@ namespace EventManagement.Infrastructure
             : base(options) { }
         
 
-        public DbSet<User> users => Set<User>();
-        public DbSet<Event> events => Set<Event>();
-        public DbSet<Participant> participants => Set<Participant>();
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Event> Events => Set<Event>();
+        public DbSet<Participant> Participants => Set<Participant>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
