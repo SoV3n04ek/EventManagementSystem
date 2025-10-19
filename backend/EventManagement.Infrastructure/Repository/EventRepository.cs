@@ -24,6 +24,11 @@ namespace EventManagement.Infrastructure.Interfaces
         public async Task AddAsync(Event newEvent) =>
             await _context.Events.AddAsync(newEvent);
 
+        public void Remove(Event oldEvent)
+        {
+            _context.Events.Remove(oldEvent);
+        }
+
         public async Task SaveChangesAsync() =>
             await _context.SaveChangesAsync();
     }

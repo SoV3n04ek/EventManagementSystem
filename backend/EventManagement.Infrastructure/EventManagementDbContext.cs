@@ -17,6 +17,12 @@ namespace EventManagement.Infrastructure
         {
             base.OnModelCreating(modelBuilder);
 
+            // Force all table names to lowercase
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                entity.SetTableName(entity.GetTableName()!.ToLower());
+            }
+
             // User -> Event (Organizer)
             modelBuilder.Entity<Event>()
                 .HasOne(e => e.Organizer)

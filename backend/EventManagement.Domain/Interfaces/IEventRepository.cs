@@ -7,6 +7,7 @@ namespace EventManagement.Infrastructure.Interfaces
         Task<IEnumerable<Event>> GetPublicEventsAsync();
         Task<Event?> GetByIdAsync(int id);
         Task AddAsync(Event newEvent);
+        void Remove(Event oldEvent);
         Task SaveChangesAsync();
     }
 }

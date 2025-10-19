@@ -1,78 +1,150 @@
 ﻿using EventManagement.Application.DTOs.EventDtos;
 using EventManagement.Application.Interfaces;
 using EventManagement.Domain.Entities;
-using EventManagement.Infrastructure;
 using EventManagement.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using EventManagement.Application.Exceptions;
+using EventManagement.Application.Mapping;
 
 namespace EventManagement.Application.Services
 {
     public class EventService : IEventService
     {
         private readonly IEventRepository _eventRepository;
-        private readonly EventManagementDbContext _context;
+        private readonly IParticipantRepository _participantRepository;
+        private readonly IUserRepository _userRepository;
 
-        public EventService(IEventRepository eventRepository, EventManagementDbContext context)
+        public EventService(
+            IEventRepository eventRepository,
+            IParticipantRepository participantRepository,
+            IUserRepository userRepository)
         {
             _eventRepository = eventRepository;
-            _context = context;
+            _participantRepository = participantRepository;
+            _userRepository = userRepository;
         }
 
-        public async Task<IEnumerable<Event>> GetPublicEventsAsync()
+        // GET /events
+        public async Task<IEnumerable<EventListDto>> GetPublicEventsAsync()
         {
-            return await _eventRepository.GetPublicEventsAsync();
+            var events = await _eventRepository.GetPublicEventsAsync();
+            return events.Select(e => e.ToListDto());
         }
 
-        public async Task<Event?> GetEventByIdAsync(int id)
+        // GET /events/{id}
+        public async Task<EventDetailDto?> GetEventByIdAsync(int id)
         {
-            return await _eventRepository.GetByIdAsync(id);
+            var ev = await _eventRepository.GetByIdAsync(id)
+                ?? throw new NotFoundException($"Event with ID {id} not found");
+
+            return ev.ToDetailDto();
         }
 
-        public async Task JoinEventAsync(int eventId, int userId)
+        // GET /users/{id}/events
+        public async Task<IEnumerable<EventListDto>> GetUserEventsAsync(int userId)
         {
-            var eventEntity = await _eventRepository.GetByIdAsync(eventId)
-                              ?? throw new Exception("Event not found");
+            var user = await _userRepository.GetByIdAsync(userId)
+                ?? throw new NotFoundException($"User with userId:{userId} is not found");
 
-            // Check if already joined
-            bool alreadyJoined = await _context.Participants
-                .AnyAsync(p => p.EventId == eventId && p.UserId == userId);
-            if (alreadyJoined)
-                throw new Exception("User already joined this event");
+            // organized + joined events
+            var joined = user.Participations.Select(p => p.Event).ToList();
+            var organized = user.OrganizedEvents;
 
-            // Check if full
-            if (eventEntity.Capacity.HasValue && eventEntity.Participants.Count >= eventEntity.Capacity.Value)
-                throw new Exception("Event is full");
+            return organized.Concat(joined)
+                .DistinctBy(e => e.Id)
+                .Select(e => e.ToListDto());
+        }
 
-            var participant = new Participant
+        // POST /events
+        public async Task<int> CreateEventAsync(CreateEventDto dto, int organizerId)
+        {
+            var organizer = await _userRepository.GetByIdAsync(organizerId)
+                ?? throw new NotFoundException($"Organizer not found");
+
+            var entity = new Event
             {
-                EventId = eventId,
-                UserId = userId
+                Name = dto.Name,
+                Description = dto.Description,
+                EventDate = dto.EventDate,
+                Location = dto.Location,
+                Capacity = dto.Capacity,
+                IsPublic = dto.IsPublic,
+                OrganizerId = organizerId
             };
 
-            _context.Participants.Add(participant);
-            await _context.SaveChangesAsync();
+            await _eventRepository.AddAsync(entity);
+            await _eventRepository.SaveChangesAsync();
+
+            return entity.Id;
         }
 
+        // PATCH /events/{id}
+        public async Task UpdateEventAsync(int eventId, UpdateEventDto dto, int userId)
+        {
+            Event ev = await _eventRepository.GetByIdAsync(eventId)
+                ?? throw new NotFoundException($"Event with eventId {eventId} not found");
+
+            if (ev.OrganizerId != userId)
+            {
+                throw new ForbiddenException("Only the organizer can edit this event");
+            }
+
+            if (dto.Capacity.HasValue && dto.Capacity.Value < ev.ParticipantCount)
+            {
+                throw new BadRequestException("Capacity cannot be less than current participants");
+            }
+
+            ev.Name = dto.Name ?? ev.Name;
+            ev.Description = dto.Description ?? ev.Description;
+            ev.EventDate = dto.EventDate ?? ev.EventDate;
+            ev.Location = dto.Location ?? ev.Location;
+            ev.Capacity = dto.Capacity ?? ev.Capacity;
+            ev.IsPublic = dto.IsPublic ?? ev.IsPublic;
+            ev.UpdatedAt = DateTime.UtcNow;
+
+            await _eventRepository.SaveChangesAsync();
+        }
+
+        // DELETE /events/{id}
+        public async Task DeleteEventAsync(int eventId, int userId)
+        {
+            Event ev = await _eventRepository.GetByIdAsync(eventId)
+                ?? throw new NotFoundException($"Event with eventId {eventId} not found");
+
+            if (ev.OrganizerId != userId)
+                throw new ForbiddenException("You can only delete your own events");
+
+            // TODO: add RemoveById(int id) method in Interface IEventRepository and class EventRepository
+            _eventRepository.Remove(ev);
+            await _eventRepository.SaveChangesAsync();
+        }
+
+        // POST /events/{id}/join
+        public async Task JoinEventAsync(int eventId, int userId)
+        {
+            Event ev = await _eventRepository.GetByIdAsync(eventId)
+                ?? throw new NotFoundException($"Event with id {eventId} not found");
+
+            var alreadyJoined = await _participantRepository.GetByEventAndUserAsync(eventId, userId);
+            if (alreadyJoined != null)
+                throw new Exception("User already joined this event");
+
+            if (ev.IsFull)
+                throw new BadRequestException("Event is full");
+
+            var participant = new Participant { EventId = eventId, UserId = userId };
+            await _participantRepository.AddAsync(participant);
+            await _participantRepository.SaveChangesAsync();
+        }
+
+        // POST /events/{id}/leave
         public async Task LeaveEventAsync(int eventId, int userId)
         {
-            var participant = await _context.Participants
-                .FirstOrDefaultAsync(p => p.EventId == eventId && p.UserId == userId);
+            var participant = await _participantRepository.GetByEventAndUserAsync(eventId, userId)
+                ?? throw new NotFoundException($"User with id {userId} not a participant in event with id {eventId}");
 
-            if (participant == null)
-                throw new Exception("User is not a participant in this event");
-
-            _context.Participants.Remove(participant);
-            await _context.SaveChangesAsync();
-        }
-
-        public Task<IEnumerable<EventListDto>> GetEventsAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<EventListDto>> GetUserEventsAsync(int userId)
-        {
-            throw new NotImplementedException();
+            _participantRepository.Remove(participant);
+            await _participantRepository.SaveChangesAsync();
         }
     }
 }
