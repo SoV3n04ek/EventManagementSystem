@@ -21,7 +21,7 @@ public class RegisterDtoValidator : AbstractValidator<RegisterDto>
             .MinimumLength(6).WithMessage("Password must be at least 6 characters")
             .MaximumLength(64).WithMessage("Password cannot exceed 64 characters")
             .Matches(@"[A-Z]").WithMessage("Password must contain at least one uppercase letter")
-            .Matches(@"[A-Z]").WithMessage("Password must contain at least one lowercase letter")
+            .Matches(@"[a-z]").WithMessage("Password must contain at least one lowercase letter")
             .Matches(@"\d").WithMessage("Password must contain at least one number");
     }
 }

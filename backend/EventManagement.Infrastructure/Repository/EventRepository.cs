@@ -2,7 +2,7 @@
 using EventManagement.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace EventManagement.Infrastructure.Interfaces
+namespace EventManagement.Infrastructure.Repository
 {
     public class EventRepository : IEventRepository
     {
@@ -20,6 +20,11 @@ namespace EventManagement.Infrastructure.Interfaces
             await _context.Events
             .Include(e => e.Participants)
             .FirstOrDefaultAsync(e => e.Id == id);
+
+        public async Task<bool> ExistsAsync(int id)
+        {
+            return await _context.Events.AnyAsync(e => e.Id == id);
+        }
 
         public async Task AddAsync(Event newEvent) =>
             await _context.Events.AddAsync(newEvent);

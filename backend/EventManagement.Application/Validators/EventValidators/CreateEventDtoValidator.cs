@@ -7,10 +7,11 @@ public class CreateEventDtoValidator : AbstractValidator<CreateEventDto>
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Event name is required")
-            .MaximumLength(255).WithMessage("Event name cannot exceed 255 characters")
-            .MaximumLength(3).WithMessage("Event name must be at least 3 characters");
+            .MinimumLength(3).WithMessage("Event name must be at least 3 characters")
+            .MaximumLength(255).WithMessage("Event name cannot exceed 255 characters");
 
         RuleFor(x => x.Description)
+            .MinimumLength(10).WithMessage("Description must be at least 10 characters")
             .MaximumLength(2000).WithMessage("Description cannot exceed 2000 characters")
             .When(x => !string.IsNullOrEmpty(x.Description));
 
@@ -20,8 +21,8 @@ public class CreateEventDtoValidator : AbstractValidator<CreateEventDto>
 
         RuleFor(x => x.Location)
             .NotEmpty().WithMessage("Location is required")
-            .MaximumLength(500).WithMessage("Location cannot exceed 500 characters")
-            .MinimumLength(2).WithMessage("Location must be at least 2 characters");
+            .MinimumLength(2).WithMessage("Location must be at least 2 characters")
+            .MaximumLength(500).WithMessage("Location cannot exceed 500 characters");
 
         RuleFor(x => x.Capacity)
             .GreaterThan(0).WithMessage("Capacity must be positive")

@@ -43,5 +43,12 @@ namespace EventManagement.Infrastructure.Repository
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<int> GetCountByEventIdAsync(int eventId)
+        {
+            return await _context.Participants
+                .Where(p => p.EventId == eventId)
+                .CountAsync();
+        }
     }
 }

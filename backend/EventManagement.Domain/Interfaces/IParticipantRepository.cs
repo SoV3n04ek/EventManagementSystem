@@ -8,5 +8,6 @@ namespace EventManagement.Infrastructure.Interfaces
         Task AddAsync(Participant participant);
         void Remove(Participant participant);
         Task SaveChangesAsync();
+        Task<int> GetCountByEventIdAsync(int eventId);
     }
 }
