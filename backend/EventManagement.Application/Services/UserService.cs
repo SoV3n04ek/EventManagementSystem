@@ -1,56 +1,75 @@
 ﻿using EventManagement.Application.DTOs.UserDtos;
 using EventManagement.Application.Exceptions;
 using EventManagement.Application.Interfaces;
+using EventManagement.Application.Mapping;
 using EventManagement.Domain.Entities;
+using EventManagement.Domain.Interfaces.Security;
 using EventManagement.Infrastructure.Interfaces;
-using Microsoft.Extensions.Configuration;
-using System.ComponentModel.DataAnnotations;
 
 namespace EventManagement.Application.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
-        private readonly IConfiguration _configuration;
+        private readonly IPasswordHasher _passwordHasher;
+        private readonly ITokenService _tokenService;
 
         public UserService(
             IUserRepository userRepository,
-            IConfiguration configuration)
-        {
+            IPasswordHasher passwordHasher,
+            ITokenService tokenService
+        ) {
             _userRepository = userRepository;
-            _configuration = configuration;
+            _passwordHasher = passwordHasher;
+            _tokenService = tokenService;
         }
 
-        public Task<UserDetailDto> GetUserByIdAsync(int userId)
+        public async Task<UserDetailDto> GetUserByIdAsync(int userId)
         {
-            throw new NotImplementedException();
+            var user = await _userRepository.GetByIdAsync(userId)
+                ?? throw new NotFoundException($"User with id {userId} not found");
+
+            return user.ToUserDetailDto();
         }
 
-        public Task<string> LoginAsync(LoginDtoValidator loginDto)
+        public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
         {
-            throw new NotImplementedException();
+            var user = await _userRepository.GetByEmailAsync(loginDto.Email);
+           
+            if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
+            {
+                throw new BadRequestException("Invalid email or password");
+            }
+
+            var token = _tokenService.GenerateToken(user);
+
+            return new AuthResponseDto
+            {
+                Token = token,
+                User = user.ToUserDto()
+            };
         }
 
-        public Task<UserDto> RegisterAsync(RegisterDto registerDto)
+        public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
         {
-            throw new NotImplementedException();
+            if (await _userRepository.GetByEmailAsync(registerDto.Email) != null)
+            {
+                throw new ConflictException("User with this email already existed");
+            }
+
+            var user = new User
+            {
+                Name = registerDto.Name,
+                Email = registerDto.Email.ToLower(),
+                PasswordHash = _passwordHasher.HashPassword(registerDto.Password),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.AddAsync(user);
+            await _userRepository.SaveChangesAsync();
+
+            return user.ToUserDto();
         }
-
-        //public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
-        //{
-        //    if (await _userRepository.GetByEmailAsync(registerDto.Email) != null)
-        //    {
-        //        throw new ConflictException("User with this email already exists");
-        //    }
-
-        //    var passwordHash = HashPassword(registerDto.Password);
-
-        //    var user = new User
-        //    {
-        //        Name = registerDto.Name,
-        //        Email = registerDto.Email.ToLower()
-        //    };
-        //}
-
     }
 }

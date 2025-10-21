@@ -12,6 +12,7 @@ namespace EventManagement.Application.DTOs.EventDtos
         public int? Capacity { get; set; }
         public bool IsPublic { get; set; }
         public string OrganizerName { get; set; } = string.Empty;
+        public int ParticipantCount { get; set; }
 
         public List<ParticipantDto> Participants { get; set; } = new();
     }

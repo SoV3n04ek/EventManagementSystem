@@ -1,10 +1,11 @@
 ﻿using EventManagement.Application.DTOs.EventDtos;
+using EventManagement.Application.Exceptions;
 using EventManagement.Application.Interfaces;
+using EventManagement.Application.Mapping;
 using EventManagement.Domain.Entities;
 using EventManagement.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using EventManagement.Application.Exceptions;
-using EventManagement.Application.Mapping;
+using Microsoft.Extensions.Logging;
 
 namespace EventManagement.Application.Services
 {
@@ -13,15 +14,17 @@ namespace EventManagement.Application.Services
         private readonly IEventRepository _eventRepository;
         private readonly IParticipantRepository _participantRepository;
         private readonly IUserRepository _userRepository;
-
+        private readonly ILogger<EventService> _logger;
         public EventService(
             IEventRepository eventRepository,
             IParticipantRepository participantRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            ILogger<EventService> logger)
         {
             _eventRepository = eventRepository;
             _participantRepository = participantRepository;
             _userRepository = userRepository;
+            _logger = logger;
         }
 
         // GET /events
@@ -37,7 +40,57 @@ namespace EventManagement.Application.Services
             var ev = await _eventRepository.GetByIdAsync(id)
                 ?? throw new NotFoundException($"Event with ID {id} not found");
 
+            if (!ev.IsPublic)
+            {
+                _logger.LogWarning($"Access atempt to private event from user with id {id}");
+            }
+
             return ev.ToDetailDto();
+        }
+
+        // GET 
+
+        public async Task<CalendarViewDto> GetUserCalendarAsync(int userId, DateTime startDate, DateTime endDate, string viewType)
+        {
+            var user = await _userRepository.GetByIdAsync(userId)
+                ?? throw new NotFoundException($"User with id {userId} not found");
+
+            // Get organized events in data range
+            var organizedEvents = user.OrganizedEvents
+                .Where(e => e.EventDate >= startDate && e.EventDate <= endDate)
+                .Select(e => new CalendarEventDto
+                {
+                    Id = e.Id,
+                    Title = e.Name,
+                    Start = e.EventDate,
+                    End = e.EventDate.AddHours(2),
+                    Location = e.Location,
+                    IsOrganizer = true
+                });
+
+            // Get participating events in data range
+            var participatingEvents = user.Participations
+                .Select(p => p.Event)
+                .Where(e => e.EventDate >= startDate && e.EventDate <= endDate)
+                .Select(e => new CalendarEventDto
+                {
+                    Id = e.Id,
+                    Title = e.Name,
+                    Start = e.EventDate,
+                    End = e.EventDate.AddHours(2),
+                    Location = e.Location,
+                    IsOrganizer = false
+                });
+
+            var allEvents = organizedEvents.Concat(participatingEvents).ToList();
+
+            return new CalendarViewDto
+            {
+                Events = allEvents,
+                StartDate = startDate,
+                EndDate = endDate,
+                ViewType = viewType
+            };
         }
 
         // GET /users/{id}/events
@@ -127,10 +180,13 @@ namespace EventManagement.Application.Services
 
             var alreadyJoined = await _participantRepository.GetByEventAndUserAsync(eventId, userId);
             if (alreadyJoined != null)
-                throw new Exception("User already joined this event");
+                throw new ConflictException("User already joined this event");
 
-            if (ev.IsFull)
+            var currentParticipants = await _participantRepository.GetCountByEventIdAsync(eventId);
+            if (ev.Capacity.HasValue && currentParticipants >= ev.Capacity.Value)
+            {
                 throw new BadRequestException("Event is full");
+            }
 
             var participant = new Participant { EventId = eventId, UserId = userId };
             await _participantRepository.AddAsync(participant);

@@ -5,6 +5,6 @@ namespace EventManagement.Application.Interfaces;
 public interface IUserService
 {
     Task<UserDto> RegisterAsync(RegisterDto registerDto);
-    Task<string> LoginAsync(LoginDtoValidator loginDto);
+    Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
     Task<UserDetailDto> GetUserByIdAsync(int userId);
 }

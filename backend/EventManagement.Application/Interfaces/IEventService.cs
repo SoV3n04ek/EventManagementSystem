@@ -6,6 +6,7 @@ namespace EventManagement.Application.Interfaces
     {
         Task<IEnumerable<EventListDto>> GetPublicEventsAsync();
         Task<EventDetailDto?> GetEventByIdAsync(int id);
+        Task<CalendarViewDto> GetUserCalendarAsync(int userId, DateTime startDate, DateTime endDate, string viewType);
         Task<IEnumerable<EventListDto>> GetUserEventsAsync(int userId);
         Task<int> CreateEventAsync(CreateEventDto dto, int organizerId);
         Task UpdateEventAsync(int eventId, UpdateEventDto dto, int userId);
