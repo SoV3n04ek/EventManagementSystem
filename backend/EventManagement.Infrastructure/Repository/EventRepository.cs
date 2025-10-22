@@ -19,13 +19,14 @@ namespace EventManagement.Infrastructure.Repository
         public async Task<Event?> GetByIdAsync(int id) =>
             await _context.Events
             .Include(e => e.Participants)
+            .Include(e => e.Participants)
+                .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         public async Task<bool> ExistsAsync(int id)
         {
             return await _context.Events.AnyAsync(e => e.Id == id);
         }
-
         public async Task AddAsync(Event newEvent) =>
             await _context.Events.AddAsync(newEvent);
 

@@ -47,7 +47,7 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT"
+        BearerFormat = "JWT"    
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -82,6 +82,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", policy =>
+    {
+        policy.WithOrigins("http:localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // Dependency Injection for auth
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -108,6 +119,8 @@ if (app.Environment.IsDevelopment())
     var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
     await seeder.SeedAsync();
 }
+
+app.UseCors("AllowAngular");
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 

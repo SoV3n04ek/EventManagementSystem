@@ -33,7 +33,9 @@ namespace EventManagement.Application.Mapping
                 IsPublic = ev.IsPublic,
                 OrganizerName = ev.Organizer?.Name ?? "Unknown",
                 ParticipantCount = ev.ParticipantCount,
-                Participants = ev.Participants.Select(p => new ParticipantDto
+                Participants = ev.Participants
+                .Where(p => p.User != null)
+                .Select(p => new ParticipantDto
                 {
                     Id = p.User.Id,
                     Name = p.User.Name

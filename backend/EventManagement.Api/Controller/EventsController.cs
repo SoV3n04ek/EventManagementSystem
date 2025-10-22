@@ -88,7 +88,7 @@ namespace EventManagement.Api.Controller
                     message = "Validation failed",
                     errors = ModelState.ToDictionary(
                         k => k.Key,
-                        v => v.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                        v => v.Value?.Errors.Select(e => e.ErrorMessage).ToArray()
                     )
                 });
             }
