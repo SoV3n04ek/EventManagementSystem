@@ -1,0 +1,93 @@
+<div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+      <div class="p-6">
+        <!-- Event Header -->
+        <div class="flex items-start justify-between mb-3">
+          <h3 class="text-xl font-semibold text-gray-900 line-clamp-1">
+            {{ event.name }}
+          </h3>
+          @if (event.isFull) {
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              Full
+            </span>
+          }
+        </div>
+
+        <!-- Event Description -->
+        <p class="text-gray-600 text-sm mb-4 line-clamp-2">
+          {{ event.shortDescription }}
+        </p>
+
+        <!-- Event Details -->
+        <div class="space-y-2 mb-4">
+          <!-- Date -->
+          <div class="flex items-center text-sm text-gray-600">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span>{{ event.eventDate | date:'MMM d, y' }}</span>
+          </div>
+
+          <!-- Time -->
+          <div class="flex items-center text-sm text-gray-600">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>{{ event.eventDate | date:'h:mm a' }}</span>
+          </div>
+
+          <!-- Location -->
+          <div class="flex items-center text-sm text-gray-600">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span class="truncate">{{ event.location }}</span>
+          </div>
+
+          <!-- Participants -->
+          <div class="flex items-center text-sm text-gray-600">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <span>{{ event.participantCount }} participant{{ event.participantCount !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2 pt-4 border-t border-gray-200">
+          <a 
+            [routerLink]="['/events', event.id]"
+            class="flex-1 text-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            View Details
+          </a>
+
+          @if (showJoinButton) {
+            @if (event.isFull) {
+              <button
+                disabled
+                class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed text-sm font-medium"
+              >
+                Full
+              </button>
+            } @else {
+              <button
+                (click)="onJoin()"
+                class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
+              >
+                Join Event
+              </button>
+            }
+          }
+
+          @if (showLeaveButton) {
+            <button
+              (click)="onLeave()"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Leave Event
+            </button>
+          }
+        </div>
+      </div>
+    </div>

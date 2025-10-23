@@ -1,0 +1,107 @@
+<div class="min-h-screen bg-gray-50">
+      <!-- Header Section -->
+      <div class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div class="md:flex md:items-center md:justify-between">
+            <div class="flex-1 min-w-0">
+              <h1 class="text-3xl font-bold text-gray-900">
+                Public Events
+              </h1>
+              <p class="mt-2 text-sm text-gray-600">
+                Discover and join exciting events in your area
+              </p>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="mt-6">
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </div>
+              <input
+                type="text"
+                [(ngModel)]="searchQuery"
+                (ngModelChange)="onSearchChange()"
+                placeholder="Search events by name, location, or description..."
+                class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Loading State -->
+        @if (loading()) {
+          <div class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          </div>
+        }
+
+        <!-- Error State -->
+        @if (error()) {
+          <div class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-800">{{ error() }}</p>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Events Grid -->
+        @if (!loading() && !error()) {
+          @if (filteredEvents().length > 0) {
+            <div>
+              <div class="mb-4 text-sm text-gray-600">
+                Showing {{ filteredEvents().length }} of {{ events().length }} events
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @for (event of filteredEvents(); track event.id) {
+                  <app-event-card
+                    [event]="event"
+                    [showJoinButton]="isAuthenticated()"
+                    (join)="handleJoinEvent($event)"
+                  />
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="text-center py-12">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No events found</h3>
+              <p class="mt-1 text-sm text-gray-500">
+                @if (searchQuery()) {
+                  Try adjusting your search criteria
+                } @else {
+                  No public events available at the moment
+                }
+              </p>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Success Message -->
+      @if (successMessage()) {
+        <div class="fixed bottom-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <p class="text-sm text-green-800">{{ successMessage() }}</p>
+          </div>
+        </div>
+      }
+    </div>
