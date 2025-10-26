@@ -1,6 +1,7 @@
 ﻿using EventManagement.Application.DTOs.EventDtos;
 using EventManagement.Application.Exceptions;
 using EventManagement.Application.Interfaces;
+using EventManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -99,6 +100,8 @@ namespace EventManagement.Api.Controller
             try
             {
                 var eventId = await _eventService.CreateEventAsync(dto, organizerId);
+
+                await _eventService.JoinEventAsync(eventId, organizerId);
 
                 return Ok(new { id = eventId, message = "Event created successfully" });
             }

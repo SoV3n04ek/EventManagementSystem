@@ -22,7 +22,7 @@ export class EventService {
   getPublicEvents(): Observable<EventListItem[]> {
     return this.http.get<EventListItem[]>(this.apiUrl);
   }
-
+  
   // Get single event by ID
   getEventById(id: number): Observable<Event> {
     return this.http.get<Event>(`${this.apiUrl}/${id}`);

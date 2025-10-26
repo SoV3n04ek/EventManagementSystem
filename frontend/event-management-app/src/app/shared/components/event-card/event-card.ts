@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EventListItem } from '../../../models/event';
 import { RouterLink } from '@angular/router';
-
+  
 @Component({
   selector: 'app-event-card',
   standalone: true,

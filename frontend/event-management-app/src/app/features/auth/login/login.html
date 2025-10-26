@@ -4,6 +4,10 @@
             <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
                 Sign in to your account
             </h2>
+            <!-- Add this paragraph for consistency with register page -->
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Access your account to manage events
+            </p>
         </div>
 
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="mt-8 space-y-6">
@@ -13,51 +17,77 @@
                 </div>
             }
 
-            <div class="rounded-md shadow-sm -space-y-px">
+            <!-- Add space-y-4 here for consistent field spacing -->
+            <div class="rounded-md shadow-sm space-y-4">
                 <!-- email -->
                 <div>
-                    <label for="email" class="sr-only">Email address</label>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email address
+                    </label>
                     <input 
                         id="email"
                         type="email"
                         formControlName="email"
                         required
-                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                        class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                         placeholder="Email address"
+                        [class.border-red-500]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
                         />
+                    @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+                        <p class="mt-1 text-sm text-red-600">
+                            @if (loginForm.get('email')?.errors?.['required']) {
+                                Email is required
+                            }
+                            @if (loginForm.get('email')?.errors?.['email']) {
+                                Please enter a valid email
+                            }
+                        </p>
+                    }
                 </div> 
+                
                 <!-- Password -->
                 <div>
-                    <label for="password" class="sr-only">Password</label>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                    </label>
                     <input
                         id="password"
                         type="password"
                         formControlName="password"
                         required
-                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                        class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                         placeholder="Password"
+                        [class.border-red-500]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
                     />
-                </div>
-                <div>
-                    <button
-                        type="submit"
-                        [disabled]="loading() || loginForm.invalid"
-                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                    >
-                        {{ loading() ? 'Signing in...' : 'Sign in' }}
-                    </button>
-                </div>
-
-                <div class="text-center">
-                    <p class="text-sm text-gray-600">
-                        Don't have an account?
-                        <a routerLink="/register" class="font-medium text-primary-600 hover:text-primary-500">
-                            Sign up
-                        </a>
-                    </p>
+                    @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+                        <p class="mt-1 text-sm text-red-600">
+                            @if (loginForm.get('password')?.errors?.['required']) {
+                                Password is required
+                            }
+                        </p>
+                    }
                 </div>
             </div>
-        </form>
 
+            <!-- Move button and sign up link outside of the shadow-sm div -->
+            <div>
+                <button
+                    type="submit"
+                    [disabled]="loading() || loginForm.invalid"
+                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {{ loading() ? 'Signing in...' : 'Sign in' }}
+                </button>
+            </div>
+
+            <div class="text-center">
+                <p class="text-sm text-gray-600">
+                    Don't have an account?
+                    <a routerLink="/register" class="font-medium text-primary-600 hover:text-primary-500">
+                        Sign up
+                    </a>
+                </p>
+            </div>
+        </form>
     </div>
 </div>

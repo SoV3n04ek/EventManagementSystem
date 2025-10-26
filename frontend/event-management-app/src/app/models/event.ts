@@ -7,6 +7,7 @@ export interface Event {
     capacity?: number;
     isPublic: boolean;
     organizerName: string;
+    organizerId: number;
     participantCount: number;
     participants: Participant[];
 }

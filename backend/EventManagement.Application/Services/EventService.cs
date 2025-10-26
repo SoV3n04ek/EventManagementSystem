@@ -140,7 +140,7 @@ namespace EventManagement.Application.Services
             if (ev.OrganizerId != userId)
             {
                 throw new ForbiddenException("Only the organizer can edit this event");
-            }
+            }   
 
             if (dto.Capacity.HasValue && dto.Capacity.Value < ev.ParticipantCount)
             {

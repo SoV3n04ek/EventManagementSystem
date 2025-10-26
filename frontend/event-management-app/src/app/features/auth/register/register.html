@@ -44,6 +44,9 @@
                   @if (registerForm.get('name')?.errors?.['minlength']) {
                     Name must be at least 3 characters
                   }
+                  @if (registerForm.get('name')?.errors?.['maxlength']) {
+                    Name cannot exceed 32 characters
+                  }
                   @if (registerForm.get('name')?.errors?.['pattern']) {
                     Name can only contain letters and spaces
                   }
