@@ -1,0 +1,151 @@
+ <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-md w-full space-y-8">
+        <div>
+          <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+          <p class="mt-2 text-center text-sm text-gray-600">
+            Join us to manage and discover events
+          </p>
+        </div>
+        
+        <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="mt-8 space-y-6">
+          @if (errorMessage()) {
+            <div class="rounded-md bg-red-50 p-4">
+              <p class="text-sm text-red-800">{{ errorMessage() }}</p>
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div class="rounded-md bg-green-50 p-4">
+              <p class="text-sm text-green-800">{{ successMessage() }}</p>
+            </div>
+          }
+
+          <div class="space-y-4">
+            <!-- Name Field -->
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700">
+                Full Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                formControlName="name"
+                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="John Doe"
+                [class.border-red-500]="registerForm.get('name')?.invalid && registerForm.get('name')?.touched"
+              />
+              @if (registerForm.get('name')?.invalid && registerForm.get('name')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  @if (registerForm.get('name')?.errors?.['required']) {
+                    Name is required
+                  }
+                  @if (registerForm.get('name')?.errors?.['minlength']) {
+                    Name must be at least 3 characters
+                  }
+                  @if (registerForm.get('name')?.errors?.['maxlength']) {
+                    Name cannot exceed 32 characters
+                  }
+                  @if (registerForm.get('name')?.errors?.['pattern']) {
+                    Name can only contain letters and spaces
+                  }
+                </p>
+              }
+            </div>
+
+            <!-- Email Field -->
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                formControlName="email"
+                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="you@example.com"
+                [class.border-red-500]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
+              />
+              @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  @if (registerForm.get('email')?.errors?.['required']) {
+                    Email is required
+                  }
+                  @if (registerForm.get('email')?.errors?.['email']) {
+                    Please enter a valid email
+                  }
+                </p>
+              }
+            </div>
+
+            <!-- Password Field -->
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                formControlName="password"
+                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="••••••••"
+                [class.border-red-500]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched"
+              />
+              @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
+                <div class="mt-1 text-sm text-red-600">
+                  @if (registerForm.get('password')?.errors?.['required']) {
+                    <p>Password is required</p>
+                  }
+                  @if (registerForm.get('password')?.errors?.['minlength']) {
+                    <p>Password must be at least 6 characters</p>
+                  }
+                  @if (registerForm.get('password')?.errors?.['pattern']) {
+                    <p>Password must contain uppercase, lowercase, and number</p>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Confirm Password Field -->
+            <div>
+              <label for="confirmPassword" class="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                formControlName="confirmPassword"
+                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="••••••••"
+                [class.border-red-500]="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched"
+              />
+              @if (registerForm.errors?.['passwordMismatch'] && registerForm.get('confirmPassword')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  Passwords do not match
+                </p>
+              }
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              [disabled]="loading() || registerForm.invalid"
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ loading() ? 'Creating account...' : 'Sign up' }}
+            </button>
+          </div>
+
+          <div class="text-center">
+            <p class="text-sm text-gray-600">
+              Already have an account?
+              <a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-500">
+                Sign in
+              </a>
+            </p>
+          </div>
+        </form>
+      </div>
+</div>

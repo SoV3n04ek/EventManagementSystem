@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿using EventManagement.Application.Exceptions;
 using System.Text.Json;
 
 namespace EventManagement.Api.Middleware
@@ -7,6 +7,7 @@ namespace EventManagement.Api.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ErrorHandlingMiddleware> _logger;
+
         public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
         {
             _next = next;
@@ -21,23 +22,34 @@ namespace EventManagement.Api.Middleware
             }
             catch(Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception occured");
-
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Response.ContentType = "application/json";
-
-                var response = new
-                {
-                    message = "An unexpected error occured.",
-                    details = ex.Message,
-                    statusCode = context.Response.StatusCode
-                };
-
-                var json = JsonSerializer.Serialize(response);
-
-                await context.Response.WriteAsync(json);
+                await HandleExceptionAsync(context, ex);
             }
+        }
 
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            var (statusCode, message) = exception switch
+            {
+                NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+                ConflictException => (StatusCodes.Status409Conflict, exception.Message),
+                ForbiddenException => (StatusCodes.Status403Forbidden,  exception.Message),
+                BadRequestException => (StatusCodes.Status400BadRequest, exception.Message),
+                _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
+            };
+
+            _logger.LogError(exception, $"An error occurred: {message} ");
+
+            context.Response.StatusCode = statusCode;
+            context.Response.ContentType = "application/json";
+
+            var response = new
+            {
+                error = message,
+                details = exception.Message,
+                statusCode = statusCode
+            };
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
     }
 }

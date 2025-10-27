@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: eventmanagement_postgres
+    environment:
+      POSTGRES_USER: eventuser
+      POSTGRES_PASSWORD: eventpass123
+      POSTGRES_DB: eventmanagement
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - event_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventuser -d eventmanagement"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: EventManagement.Api/Dockerfile
+    container_name: eventmanagement_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=eventmanagement;Username=eventuser;Password=eventpass123"
+      # CORS settings
+      CORS__AllowedOrigins__0: "http://localhost:4200"
+      CORS__AllowedOrigins__1: "http://localhost"
+    ports:
+      - "5000:5000"
+    networks:
+      - event_net
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:5000/health || exit 0"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
+    #   start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend/event-management-app
+      dockerfile: Dockerfile
+    container_name: eventmanagement_frontend
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "4200:80"
+    networks:
+      - event_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  event_net:
+    driver: bridge

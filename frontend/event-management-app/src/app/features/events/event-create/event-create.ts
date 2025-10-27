@@ -1,0 +1,98 @@
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { EventService } from '../../../core/services/event.service';
+import { BehaviorSubject } from 'rxjs';
+
+@Component({
+  selector: 'app-event-create',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  templateUrl: './event-create.html',
+  styleUrl: './event-create.css'
+})
+export class EventCreateComponent {
+  eventForm: FormGroup;
+  
+  private loadingSubject = new BehaviorSubject<boolean>(false);
+  private errorMessageSubject = new BehaviorSubject<string>('');
+  
+  loading$ = this.loadingSubject.asObservable();
+  errorMessage$ = this.errorMessageSubject.asObservable();
+
+  constructor(
+    private fb: FormBuilder,
+    private eventService: EventService,
+    private router: Router
+  ) {
+    this.eventForm = this.fb.group({
+      name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(255)]],
+      description: ['', [Validators.minLength(10), Validators.maxLength(2000)]],
+      eventDate: ['', [Validators.required, this.futureDateValidator]],
+      location: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(500)]],
+      capacity: [null, [Validators.min(1)]],
+      isPublic: [true, [Validators.required]]
+    });
+  }
+
+  getMinDateTime(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  futureDateValidator(control: any) {
+    if (!control.value) return null;
+    
+    const selectedDate = new Date(control.value);
+    const now = new Date();
+
+    if (selectedDate <= now) {
+      return { futureDate: true };
+    }
+
+    return null;
+  }
+
+  onSubmit(): void {
+    if (this.eventForm.invalid) {
+      this.eventForm.markAllAsTouched();
+      return;
+    }
+
+    this.loadingSubject.next(true);
+    this.errorMessageSubject.next('');
+
+    const formValue = this.eventForm.value;
+
+    const eventData = {
+      ...formValue,
+      eventDate: new Date(formValue.eventDate).toISOString(),
+      capacity: formValue.capacity || null
+    };
+
+    this.eventService.createEvent(eventData).subscribe({
+      next: (response) => {
+        this.router.navigate(['/events', response.id]);
+      },
+      error: (err) => {
+        this.errorMessageSubject.next(
+          err.error?.message ||
+          err.error?.error ||
+          'Failed to create event. Please try again.'
+        );
+        this.loadingSubject.next(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  }
+
+  goBack(): void {
+    this.router.navigate(['/events']);
+  }
+}

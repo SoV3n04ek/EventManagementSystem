@@ -1,0 +1,218 @@
+<div class="min-h-screen bg-gray-50">
+  <!-- Loading State -->
+  @if (loading$ | async) {
+    <div class="flex justify-center items-center min-h-screen">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error$ | async; as error) {
+    <div class="max-w-3xl mx-auto px-4 py-12">
+      <div class="rounded-md bg-red-50 p-4">
+        <p class="text-sm text-red-800">{{ error }}</p>
+        <button
+          (click)="goBack()"
+          class="mt-4 text-sm text-red-600 hover:text-red-800 font-medium"
+        >
+          ← Go Back
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Event Details -->
+  @if (event$ | async; as event) {
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Back Button -->
+      <button
+        (click)="goBack()"
+        class="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to Events
+      </button>
+
+      <!-- Event Card -->
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-primary-600 to-primary-700 px-8 py-6">
+          <h1 class="text-3xl font-bold text-white">
+            {{ event.name }}
+          </h1>
+          <p class="mt-2 text-primary-100">
+            Organized by {{ event.organizerName }}
+          </p>
+        </div>
+
+        <!-- Content -->
+        <div class="px-8 py-6">
+          <!-- Action Buttons (Top) -->
+          @if (currentUser) {
+            <div class="flex gap-3 mb-6 pb-6 border-b border-gray-200">
+              @if (isOrganizer(event)) {
+                <button
+                  (click)="editEvent(event.id)"
+                  class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium"
+                >
+                  Edit Event
+                </button>
+                <button
+                  (click)="deleteEvent(event.id)"
+                  class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+                >
+                  Delete Event
+                </button>
+              } @else {
+                @if (isParticipant(event)) {
+                  <button
+                    (click)="leaveEvent(event.id)"
+                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+                  >
+                    Leave Event
+                  </button>
+                } @else if (event.capacity && event.participantCount >= event.capacity) {
+                  <button
+                    disabled
+                    class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed font-medium"
+                  >
+                    Event is Full
+                  </button>
+                } @else {
+                  <button
+                    (click)="joinEvent(event.id)"
+                    class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium"
+                  >
+                    Join Event
+                  </button>
+                }
+              }
+            </div>
+          }
+
+          <!-- Event Information -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Date & Time -->
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-gray-900">Date & Time</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                  {{ event.eventDate | date:'EEEE, MMMM d, y' }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  {{ event.eventDate | date:'h:mm a' }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Location -->
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-gray-900">Location</h3>
+                <p class="mt-1 text-sm text-gray-600">{{ event.location }}</p>
+              </div>
+            </div>
+
+            <!-- Capacity -->
+            @if (event.capacity) {
+              <div class="flex items-start">
+                <div class="flex-shrink-0">
+                  <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-gray-900">Capacity</h3>
+                  <p class="mt-1 text-sm text-gray-600">
+                    {{ event.participantCount }} / {{ event.capacity }} participants
+                  </p>
+                  <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      class="bg-primary-600 h-2 rounded-full transition-all"
+                      [style.width.%]="(event.participantCount / event.capacity) * 100"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="flex items-start">
+                <div class="flex-shrink-0">
+                  <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-gray-900">Participants</h3>
+                  <p class="mt-1 text-sm text-gray-600">
+                    {{ event.participantCount }} participant{{ event.participantCount !== 1 ? 's' : '' }}
+                  </p>
+                  <p class="text-xs text-gray-500">Unlimited capacity</p>
+                </div>
+              </div>
+            }
+
+            <!-- Visibility -->
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-gray-900">Visibility</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                  {{ event.isPublic ? 'Public Event' : 'Private Event' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          @if (event.description) {
+            <div class="mb-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">About this event</h3>
+              <p class="text-gray-600 whitespace-pre-line">{{ event.description }}</p>
+            </div>
+          }
+
+          <!-- Participants List -->
+          @if (event.participants && event.participants.length > 0) {
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                Participants ({{ event.participants.length }})
+              </h3>
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                @for (participant of event.participants; track participant.id) {
+                  <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                    <div class="flex-shrink-0 w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {{ getInitials(participant.name) }}
+                    </div>
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-gray-900 truncate">
+                        {{ participant.name }}
+                      </p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -59,20 +59,34 @@ bld/
 *.sln.docstates
 
 # ============================================
-# Frontend - Angular / Node.js
+# Frontend - Angular / Node.js  
 # ============================================
-
-# Node modules
 node_modules/
+/frontend/event-management-app/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Angular build output
-/frontend/**/dist/
-/frontend/**/.angular/
-/frontend/**/tmp/
-/frontend/**/out-tsc/
+/dist/
+/frontend/event-management-app/dist/
+/.angular/
+/frontend/event-management-app/.angular/
+/tmp/
+/frontend/event-management-app/tmp/
+/out-tsc/
+/frontend/event-management-app/out-tsc/
+
+# Angular cache & coverage
+.angular/
+/frontend/event-management-app/.angular/
+/coverage/
+/frontend/event-management-app/coverage/
+
+# Angular compiler cache
+*.ngfactory.*
+*.ngsummary.*
+*.ngstyle.*
 
 # IDEs and editors
 .idea/
@@ -80,9 +94,6 @@ yarn-error.log*
 *.swo
 *~
 .DS_Store
-
-# Angular cache
-.angular/
 
 # ============================================
 # Docker

@@ -1,0 +1,260 @@
+<div class="min-h-screen bg-gray-50">
+  <!-- Header -->
+  <div class="bg-white shadow">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+          <h1 class="text-3xl font-bold text-gray-900">My Events</h1>
+          <p class="mt-2 text-sm text-gray-600">
+            View and manage your event calendar
+          </p>
+        </div>
+        <div class="mt-4 md:mt-0">
+          <a
+            routerLink="/events/create"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Create Event
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (calendarData$ | async; as calendarData) {
+    @if (calendarData.events.length === 0) {
+      <div class="text-center py-12 bg-white rounded-lg shadow mt-6 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No events</h3>
+        <p class="mt-1 text-sm text-gray-500">
+          You are not part of any events yet.
+        </p>
+        <p class="mt-1 text-sm text-gray-500">
+          Explore public events and join.
+        </p>
+        <div class="mt-6 flex justify-center gap-4">
+          <a
+            routerLink="/events"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+          >
+            Explore public events
+          </a>
+          <a
+            routerLink="/events/create"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Create an event
+          </a>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Calendar Controls -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Navigation -->
+        <div class="flex items-center gap-4">
+          <button
+            (click)="previousPeriod()"
+            class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            title="Previous month"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+
+          <h2 class="text-xl font-semibold text-gray-900 min-w-[200px] text-center">
+            {{ currentMonthYear() }}
+          </h2>
+
+          <button
+            (click)="nextPeriod()"
+            class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            title="Next month"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+
+          <button
+            (click)="goToToday()"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Today
+          </button>
+        </div>
+
+        <!-- View Toggle -->
+        @if (viewType$ | async; as currentViewType) {
+          <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+            <button
+              (click)="setViewType('month')"
+              [class.bg-primary-600]="currentViewType === 'month'"
+              [class.text-white]="currentViewType === 'month'"
+              [class.bg-white]="currentViewType !== 'month'"
+              [class.text-gray-700]="currentViewType !== 'month'"
+              class="px-4 py-2 text-sm font-medium transition-colors"
+            >
+              Month
+            </button>
+            <button
+              (click)="setViewType('week')"
+              [class.bg-primary-600]="currentViewType === 'week'"
+              [class.text-white]="currentViewType === 'week'"
+              [class.bg-white]="currentViewType !== 'week'"
+              [class.text-gray-700]="currentViewType !== 'week'"
+              class="px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+            >
+              Week
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (calendarData$ | async; as calendarData) {
+    <!-- Calendar has loaded successfully -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      
+      @if (viewType$ | async; as currentViewType) {
+        
+        @if (currentViewType === 'month') {
+          <!-- Month View -->
+          <div class="bg-white rounded-lg shadow overflow-hidden">
+            <!-- Calendar Header -->
+            <div class="grid grid-cols-7 gap-px bg-gray-200">
+              @for (day of weekDays; track day) {
+                <div class="bg-gray-50 py-3 text-center text-sm font-semibold text-gray-700">
+                  {{ day }}
+                </div>
+              }
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-px bg-gray-200">
+              @for (day of getCalendarDays(calendarData); track day.date.toISOString()) {
+                <div 
+                  class="min-h-[120px] bg-white p-2"
+                  [class.bg-gray-50]="!day.isCurrentMonth"
+                >
+                  <div class="flex items-center justify-center w-7 h-7 mb-1"
+                    [class.bg-primary-600]="day.isToday"
+                    [class.text-white]="day.isToday"
+                    [class.rounded-full]="day.isToday">
+                    <span class="text-sm font-medium"
+                      [class.text-gray-400]="!day.isCurrentMonth && !day.isToday"
+                      [class.text-gray-900]="day.isCurrentMonth && !day.isToday">
+                      {{ day.date.getDate() }}
+                    </span>
+                  </div>
+
+                  <!-- Events for this day -->
+                  <div class="space-y-1">
+                    @for (event of day.events; track event.id) {
+                      <a    
+                        [routerLink]="['/events', event.id]"
+                        class="block px-2 py-1 text-xs rounded truncate transition-colors cursor-pointer"
+                        [class.bg-primary-100]="event.isOrganizer"
+                        [class.text-primary-800]="event.isOrganizer"
+                        [class.hover:bg-primary-200]="event.isOrganizer"
+                        [class.bg-blue-100]="!event.isOrganizer"
+                        [class.text-blue-800]="!event.isOrganizer"
+                        [class.hover:bg-blue-200]="!event.isOrganizer"
+                        [title]="event.title + ' at ' + (event.start | date:'shortTime')"
+                      >
+                        {{ event.start | date:'shortTime' }} - {{ event.title }}
+                      </a>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+          
+        } @else {
+          <!-- Week View -->
+          <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="grid grid-cols-7 gap-px bg-gray-200">
+              @for (day of weekDays; track day) {
+                <div class="bg-gray-50 py-3 text-center text-sm font-semibold text-gray-700">
+                  {{ day }}
+                </div>
+              }
+            </div>
+
+            <div class="grid grid-cols-7 gap-px bg-gray-200">
+              @for (day of weekDays; track $index) {
+                <div class="bg-white p-4 min-h-[400px]">
+                  <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-10 h-10"
+                      [class.bg-primary-600]="isToday(getWeekDay($index))"
+                      [class.text-white]="isToday(getWeekDay($index))"
+                      [class.rounded-full]="isToday(getWeekDay($index))">
+                      <span class="text-lg font-semibold">
+                        {{ getWeekDay($index).getDate() }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="space-y-2">
+                    @for (event of getEventsForDay(getWeekDay($index), calendarData); track event.id) {
+                      <a                      
+                        [routerLink]="['/events', event.id]"
+                        class="block p-3 rounded-lg transition-colors cursor-pointer"
+                        [class.bg-primary-100]="event.isOrganizer"
+                        [class.hover:bg-primary-200]="event.isOrganizer"
+                        [class.bg-blue-100]="!event.isOrganizer"
+                        [class.hover:bg-blue-200]="!event.isOrganizer"
+                      >
+                        <div class="font-semibold text-sm mb-1">{{ event.title }}</div>
+                        <div class="text-xs text-gray-600">
+                          {{ event.start | date:'shortTime' }}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 truncate">
+                          {{ event.location }}
+                        </div>
+                      </a>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    
+      <!-- Legend -->
+      <div class="mt-6 flex items-center gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-primary-100 rounded"></div>
+          <span class="text-gray-700">Organized by you</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-blue-100 rounded"></div>
+          <span class="text-gray-700">Participating</span>
+        </div>
+      </div>
+    </div>
+    
+  } @else {
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="flex justify-center items-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <span class="ml-3 text-gray-600">Loading your calendar...</span>
+      </div>
+    </div>
+  }
+</div>
