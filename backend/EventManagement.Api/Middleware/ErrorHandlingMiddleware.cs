@@ -1,5 +1,4 @@
 ﻿using EventManagement.Application.Exceptions;
-using System.Net;
 using System.Text.Json;
 
 namespace EventManagement.Api.Middleware

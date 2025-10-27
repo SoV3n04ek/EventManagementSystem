@@ -19,6 +19,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "postgresql",
+        timeout: TimeSpan.FromSeconds(3),
+        tags: new[] { "db", "sql", "postgresql" }
+    );
+
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
 builder.Services.AddValidatorsFromAssemblyContaining<IUserService>();
@@ -82,13 +91,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// CORS Configuration
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http:localhost:4200")
-            .AllowAnyHeader()
+        var allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
+            ?? new[] { 
+                "http://localhost:4200", 
+                "http://localhost" 
+            };
+
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyMethod()
+            .AllowAnyHeader()
             .AllowCredentials();
     });
 });
@@ -110,23 +126,77 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Applying migrations
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+
+    try
+    {
+        var context = services.GetRequiredService<EventManagementDbContext>();
+        await context.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
     // Seeding
-    using var scope = app.Services.CreateScope();
-    var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
-    await seeder.SeedAsync();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+
+        try
+        {
+            var seeder = services.GetRequiredService<IDatabaseSeeder>();
+            await seeder.SeedAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred while seeding the database.");
+        }
+    }
 }
 
-app.UseCors("AllowAngular");
+app.UseCors();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
-app.UseHttpsRedirection();
+
+//app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Health Check endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            environment = app.Environment.EnvironmentName,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                duration = e.Value.Duration.TotalMilliseconds
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
 app.MapControllers();
 
 app.Run();

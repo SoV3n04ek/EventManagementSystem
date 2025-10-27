@@ -17,11 +17,43 @@ namespace EventManagement.Infrastructure.Data
             await _context.SaveChangesAsync();
             await SeedEventsAsync();
             await _context.SaveChangesAsync();
+            await SeedParticipantsAsync();
+            await _context.SaveChangesAsync();
             await ResetSequences();
+        }
+
+        private async Task SeedParticipantsAsync()
+        {
+            if (await _context.Participants.AnyAsync()) return;
+
+            var participants = new List<Participant>();
+
+            var events = await _context.Events.ToListAsync();
+
+            foreach (Event eve in events) {
+                participants.Add(new Participant
+                {
+                    EventId = eve.Id,
+                    UserId = eve.OrganizerId
+                });
+            }
+            await _context.Participants.AddRangeAsync(participants);
         }
 
         private async Task SeedUsersAsync()
         {
+            var tableExists = await _context.Database.ExecuteSqlRawAsync(@"
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'users'
+                )");
+
+            if (tableExists == 0)
+            {
+                return; 
+            }
+
             if (await _context.Users.AnyAsync())
             {
                 return;

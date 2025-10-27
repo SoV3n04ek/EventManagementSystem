@@ -1,8 +1,9 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { EventService } from '../../../core/services/event.service'
+import { EventService } from '../../../core/services/event.service';
+import { BehaviorSubject } from 'rxjs';
 
 @Component({
   selector: 'app-event-create',
@@ -13,8 +14,12 @@ import { EventService } from '../../../core/services/event.service'
 })
 export class EventCreateComponent {
   eventForm: FormGroup;
-  loading = signal(false);
-  errorMessage = signal('');
+  
+  private loadingSubject = new BehaviorSubject<boolean>(false);
+  private errorMessageSubject = new BehaviorSubject<string>('');
+  
+  loading$ = this.loadingSubject.asObservable();
+  errorMessage$ = this.errorMessageSubject.asObservable();
 
   constructor(
     private fb: FormBuilder,
@@ -34,7 +39,7 @@ export class EventCreateComponent {
   getMinDateTime(): string {
     const now = new Date();
     const year = now.getFullYear();
-    const month = String(now.getMonth()+1).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -60,8 +65,8 @@ export class EventCreateComponent {
       return;
     }
 
-    this.loading.set(true);
-    this.errorMessage.set('');
+    this.loadingSubject.next(true);
+    this.errorMessageSubject.next('');
 
     const formValue = this.eventForm.value;
 
@@ -76,12 +81,12 @@ export class EventCreateComponent {
         this.router.navigate(['/events', response.id]);
       },
       error: (err) => {
-        this.errorMessage.set(
+        this.errorMessageSubject.next(
           err.error?.message ||
           err.error?.error ||
           'Failed to create event. Please try again.'
         );
-        this.loading.set(false);
+        this.loadingSubject.next(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     });

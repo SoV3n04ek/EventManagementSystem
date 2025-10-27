@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/nuget.config
+**/*.user
+**/*.suo
+**/TestResults/
+**/packages/

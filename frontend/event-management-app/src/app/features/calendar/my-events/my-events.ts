@@ -198,7 +198,6 @@ export class MyEventsComponent implements OnInit {
     }
 
     // Next month days
-
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
       const dayDate = new Date(year, month + 1, day);

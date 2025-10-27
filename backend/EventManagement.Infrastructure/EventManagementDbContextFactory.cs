@@ -4,9 +4,10 @@ using Microsoft.Extensions.Configuration;
 
 namespace EventManagement.Infrastructure
 {
-    /* This lets dotnet ef know how to build 
-     * your DbContext at design time — even without running your API. /
-     */
+    /// <summary>
+    /// Design-time DbContext factory for EF Core migrations.
+    /// Allows running 'dotnet ef' commands without starting the API project.
+    /// </summary>
     public class EventManagementDbContextFactory
         : IDesignTimeDbContextFactory<EventManagementDbContext>
     {

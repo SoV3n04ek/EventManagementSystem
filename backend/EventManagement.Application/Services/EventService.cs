@@ -167,7 +167,6 @@ namespace EventManagement.Application.Services
             if (ev.OrganizerId != userId)
                 throw new ForbiddenException("You can only delete your own events");
 
-            // TODO: add RemoveById(int id) method in Interface IEventRepository and class EventRepository
             _eventRepository.Remove(ev);
             await _eventRepository.SaveChangesAsync();
         }

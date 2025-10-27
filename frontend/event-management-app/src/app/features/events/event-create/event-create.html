@@ -1,211 +1,211 @@
 <div class="min-h-screen bg-gray-50 py-8">
-      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="mb-8">
-          <button
-            (click)="goBack()"
-            class="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg>
-            Back
-          </button>
-          <h1 class="text-3xl font-bold text-gray-900">Create New Event</h1>
-          <p class="mt-2 text-sm text-gray-600">
-            Fill in the details below to create your event
-          </p>
-        </div>
-
-        <!-- Form Card -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <form [formGroup]="eventForm" (ngSubmit)="onSubmit()" class="p-8">
-            @if (errorMessage()) {
-              <div class="mb-6 rounded-md bg-red-50 p-4">
-                <p class="text-sm text-red-800">{{ errorMessage() }}</p>
-              </div>
-            }
-
-            <div class="space-y-6">
-              <!-- Event Title -->
-              <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
-                  Event Title <span class="text-red-500">*</span>
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  formControlName="name"
-                  placeholder="Summer Tech Conference 2025"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  [class.border-red-500]="eventForm.get('name')?.invalid && eventForm.get('name')?.touched"
-                />
-                @if (eventForm.get('name')?.invalid && eventForm.get('name')?.touched) {
-                  <p class="mt-1 text-sm text-red-600">
-                    @if (eventForm.get('name')?.errors?.['required']) {
-                      Event title is required
-                    }
-                    @if (eventForm.get('name')?.errors?.['minlength']) {
-                      Title must be at least 3 characters
-                    }
-                  </p>
-                }
-              </div>
-
-              <!-- Description -->
-              <div>
-                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  formControlName="description"
-                  rows="4"
-                  placeholder="Describe your event, what attendees can expect, and any other important details..."
-                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  [class.border-red-500]="eventForm.get('description')?.invalid && eventForm.get('description')?.touched"
-                ></textarea>
-                @if (eventForm.get('description')?.invalid && eventForm.get('description')?.touched) {
-                  <p class="mt-1 text-sm text-red-600">
-                    @if (eventForm.get('description')?.errors?.['minlength']) {
-                      Description must be at least 10 characters
-                    }
-                  </p>
-                }
-              </div>
-
-              <!-- Date and Time Row -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Event Date -->
-                <div>
-                  <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-2">
-                    Event Date <span class="text-red-500">*</span>
-                  </label>
-                 <input
-                    id="eventDate"
-                    type="datetime-local"
-                    formControlName="eventDate"
-                    [min]="getMinDateTime()"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                    [class.border-red-500]="eventForm.get('eventDate')?.invalid && eventForm.get('eventDate')?.touched"
-                  />
-                   <p class="mt-1 text-sm text-gray-500">
-                    Select the date and time for your event
-                  </p>
-                  @if (eventForm.get('eventDate')?.invalid && eventForm.get('eventDate')?.touched) {
-                    <p class="mt-1 text-sm text-red-600">
-                      @if (eventForm.get('eventDate')?.errors?.['required']) {
-                        Date and time are required
-                      }
-                      @if (eventForm.get('eventDate')?.errors?.['futureDate']) {
-                        Event must be scheduled in the future
-                      }
-                    </p>
-                  }
-                </div>
-
-                <!-- Location -->
-                <div>
-                  <label for="location" class="block text-sm font-medium text-gray-700 mb-2">
-                    Location <span class="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="location"
-                    type="text"
-                    formControlName="location"
-                    placeholder="Convention Center, Room 101"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                    [class.border-red-500]="eventForm.get('location')?.invalid && eventForm.get('location')?.touched"
-                  />
-                  @if (eventForm.get('location')?.invalid && eventForm.get('location')?.touched) {
-                    <p class="mt-1 text-sm text-red-600">
-                      Location is required
-                    </p>
-                  }
-                </div>
-              </div>
-
-              <!-- Capacity -->
-              <div>
-                <label for="capacity" class="block text-sm font-medium text-gray-700 mb-2">
-                  Capacity (Optional)
-                </label>
-                <input
-                  id="capacity"
-                  type="number"
-                  formControlName="capacity"
-                  placeholder="Leave empty for unlimited"
-                  min="1"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  [class.border-red-500]="eventForm.get('capacity')?.invalid && eventForm.get('capacity')?.touched"
-                />
-                @if (eventForm.get('capacity')?.invalid && eventForm.get('capacity')?.touched) {
-                  <p class="mt-1 text-sm text-red-600">
-                    Capacity must be at least 1
-                  </p>
-                }
-                <p class="mt-1 text-sm text-gray-500">
-                  Maximum number of participants. Leave empty for unlimited capacity.
-                </p>
-              </div>
-
-              <!-- Visibility -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3">
-                  Event Visibility <span class="text-red-500">*</span>
-                </label>
-                <div class="space-y-3">
-                  <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    [class.border-primary-600]="eventForm.get('isPublic')?.value === true"
-                    [class.bg-primary-50]="eventForm.get('isPublic')?.value === true">
-                    <input
-                      type="radio"
-                      formControlName="isPublic"
-                      [value]="true"
-                      class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
-                    />
-                    <div class="ml-3">
-                      <div class="text-sm font-medium text-gray-900">Public</div>
-                      <div class="text-sm text-gray-500">Anyone can see and join this event</div>
-                    </div>
-                  </label>
-
-                  <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    [class.border-primary-600]="eventForm.get('isPublic')?.value === false"
-                    [class.bg-primary-50]="eventForm.get('isPublic')?.value === false">
-                    <input
-                      type="radio"
-                      formControlName="isPublic"
-                      [value]="false"
-                      class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
-                    />
-                    <div class="ml-3">
-                      <div class="text-sm font-medium text-gray-900">Private</div>
-                      <div class="text-sm text-gray-500">Only invited users can see this event</div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="mt-8 flex gap-4">
-              <button
-                type="button"
-                (click)="goBack()"
-                class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                [disabled]="loading() || eventForm.invalid"
-                class="flex-1 px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ loading() ? 'Creating...' : 'Create Event' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <button
+        (click)="goBack()"
+        class="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back
+      </button>
+      <h1 class="text-3xl font-bold text-gray-900">Create New Event</h1>
+      <p class="mt-2 text-sm text-gray-600">
+        Fill in the details below to create your event
+      </p>
     </div>
+
+    <!-- Form Card -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+      <form [formGroup]="eventForm" (ngSubmit)="onSubmit()" class="p-8">
+        @if (errorMessage$ | async; as error) {
+          <div class="mb-6 rounded-md bg-red-50 p-4">
+            <p class="text-sm text-red-800">{{ error }}</p>
+          </div>
+        }
+
+        <div class="space-y-6">
+          <!-- Event Title -->
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+              Event Title <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="name"
+              type="text"
+              formControlName="name"
+              placeholder="Summer Tech Conference 2025"
+              class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              [class.border-red-500]="eventForm.get('name')?.invalid && eventForm.get('name')?.touched"
+            />
+            @if (eventForm.get('name')?.invalid && eventForm.get('name')?.touched) {
+              <p class="mt-1 text-sm text-red-600">
+                @if (eventForm.get('name')?.errors?.['required']) {
+                  Event title is required
+                }
+                @if (eventForm.get('name')?.errors?.['minlength']) {
+                  Title must be at least 3 characters
+                }
+              </p>
+            }
+          </div>
+
+          <!-- Description -->
+          <div>
+            <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              formControlName="description"
+              rows="4"
+              placeholder="Describe your event, what attendees can expect, and any other important details..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              [class.border-red-500]="eventForm.get('description')?.invalid && eventForm.get('description')?.touched"
+            ></textarea>
+            @if (eventForm.get('description')?.invalid && eventForm.get('description')?.touched) {
+              <p class="mt-1 text-sm text-red-600">
+                @if (eventForm.get('description')?.errors?.['minlength']) {
+                  Description must be at least 10 characters
+                }
+              </p>
+            }
+          </div>
+
+          <!-- Date and Time Row -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Event Date -->
+            <div>
+              <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-2">
+                Event Date <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="eventDate"
+                type="datetime-local"
+                formControlName="eventDate"
+                [min]="getMinDateTime()"
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                [class.border-red-500]="eventForm.get('eventDate')?.invalid && eventForm.get('eventDate')?.touched"
+              />
+              <p class="mt-1 text-sm text-gray-500">
+                Select the date and time for your event
+              </p>
+              @if (eventForm.get('eventDate')?.invalid && eventForm.get('eventDate')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  @if (eventForm.get('eventDate')?.errors?.['required']) {
+                    Date and time are required
+                  }
+                  @if (eventForm.get('eventDate')?.errors?.['futureDate']) {
+                    Event must be scheduled in the future
+                  }
+                </p>
+              }
+            </div>
+
+            <!-- Location -->
+            <div>
+              <label for="location" class="block text-sm font-medium text-gray-700 mb-2">
+                Location <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="location"
+                type="text"
+                formControlName="location"
+                placeholder="Convention Center, Room 101"
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                [class.border-red-500]="eventForm.get('location')?.invalid && eventForm.get('location')?.touched"
+              />
+              @if (eventForm.get('location')?.invalid && eventForm.get('location')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  Location is required
+                </p>
+              }
+            </div>
+          </div>
+
+          <!-- Capacity -->
+          <div>
+            <label for="capacity" class="block text-sm font-medium text-gray-700 mb-2">
+              Capacity (Optional)
+            </label>
+            <input
+              id="capacity"
+              type="number"
+              formControlName="capacity"
+              placeholder="Leave empty for unlimited"
+              min="1"
+              class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              [class.border-red-500]="eventForm.get('capacity')?.invalid && eventForm.get('capacity')?.touched"
+            />
+            @if (eventForm.get('capacity')?.invalid && eventForm.get('capacity')?.touched) {
+              <p class="mt-1 text-sm text-red-600">
+                Capacity must be at least 1
+              </p>
+            }
+            <p class="mt-1 text-sm text-gray-500">
+              Maximum number of participants. Leave empty for unlimited capacity.
+            </p>
+          </div>
+
+          <!-- Visibility -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">
+              Event Visibility <span class="text-red-500">*</span>
+            </label>
+            <div class="space-y-3">
+              <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                [class.border-primary-600]="eventForm.get('isPublic')?.value === true"
+                [class.bg-primary-50]="eventForm.get('isPublic')?.value === true">
+                <input
+                  type="radio"
+                  formControlName="isPublic"
+                  [value]="true"
+                  class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                />
+                <div class="ml-3">
+                  <div class="text-sm font-medium text-gray-900">Public</div>
+                  <div class="text-sm text-gray-500">Anyone can see and join this event</div>
+                </div>
+              </label>
+
+              <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                [class.border-primary-600]="eventForm.get('isPublic')?.value === false"
+                [class.bg-primary-50]="eventForm.get('isPublic')?.value === false">
+                <input
+                  type="radio"
+                  formControlName="isPublic"
+                  [value]="false"
+                  class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                />
+                <div class="ml-3">
+                  <div class="text-sm font-medium text-gray-900">Private</div>
+                  <div class="text-sm text-gray-500">Only invited users can see this event</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="mt-8 flex gap-4">
+          <button
+            type="button"
+            (click)="goBack()"
+            class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="(loading$ | async) || eventForm.invalid"
+            class="flex-1 px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ (loading$ | async) ? 'Creating...' : 'Create Event' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

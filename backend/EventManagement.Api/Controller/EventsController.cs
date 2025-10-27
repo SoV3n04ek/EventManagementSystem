@@ -1,7 +1,6 @@
 ﻿using EventManagement.Application.DTOs.EventDtos;
 using EventManagement.Application.Exceptions;
 using EventManagement.Application.Interfaces;
-using EventManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
