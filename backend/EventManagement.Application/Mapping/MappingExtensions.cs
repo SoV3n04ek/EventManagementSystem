@@ -32,6 +32,7 @@ namespace EventManagement.Application.Mapping
                 Capacity = ev.Capacity,
                 IsPublic = ev.IsPublic,
                 OrganizerName = ev.Organizer?.Name ?? "Unknown",
+                OrganizerId = ev.OrganizerId,
                 ParticipantCount = ev.ParticipantCount,
                 Participants = ev.Participants
                 .Where(p => p.User != null)
