@@ -57,6 +57,7 @@ export class EventDetailComponent {
     return this.authService.currentUser();
   }
 
+
   isOrganizer(event: Event): boolean {
     const user = this.currentUser;
     return !!user && !!event && event.organizerId === user.id;
