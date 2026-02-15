@@ -1,18 +1,19 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from "@angular/core"
-import { TokenService } from '../services/token.service';
 
+/**
+ * Auth Interceptor — Antigravity Protocol (Phase 1)
+ *
+ * With HttpOnly cookies, the browser manages token transmission automatically.
+ * This interceptor ensures `withCredentials: true` is set on every outgoing
+ * request so the browser includes cookies in cross-origin requests.
+ *
+ * Manual `Authorization` header injection is eliminated — the server reads
+ * the token from the cookie, not the header.
+ */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const tokenService = inject(TokenService);
-  const token = tokenService.getToken();
+  const secureReq = req.clone({
+    withCredentials: true
+  });
 
-  if (token) {
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-  }
-  
-  return next(req);
+  return next(secureReq);
 };

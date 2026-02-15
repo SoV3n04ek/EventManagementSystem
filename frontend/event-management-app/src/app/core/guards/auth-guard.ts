@@ -1,16 +1,24 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
-import { TokenService } from '../services/token.service';
+import { AuthService } from '../services/auth.service';
 
+/**
+ * Auth Guard — Antigravity Protocol (Phase 1)
+ *
+ * Reads from AuthService.isAuthenticated (computed Signal),
+ * which is guaranteed to be resolved by provideAppInitializer()
+ * before any route guard fires.
+ *
+ * No more TokenService/localStorage dependency.
+ */
 export const authGuard: CanActivateFn = (route, state) => {
-  const tokenService = inject(TokenService);
+  const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (tokenService.isAuthenticated()) {
+  if (authService.isAuthenticated()) {
     return true;
   }
 
-  // Redirect to login page with return url
-  router.navigate(['/login'], { queryParams: { returnUrl: state.url }});
+  router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
   return false;
 };
