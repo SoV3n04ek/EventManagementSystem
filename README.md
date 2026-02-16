@@ -1,4 +1,3 @@
-```markdown
 # Event Management System
 
 A full-stack event management application built with Angular frontend and ASP.NET Core Web API backend.
@@ -64,4 +63,3 @@ If you encounter any issues:
 1. Ensure Docker Desktop is running
 2. Check that ports 4200 and 5000 are available
 3. Restart with `docker-compose down && docker-compose up`
-```
