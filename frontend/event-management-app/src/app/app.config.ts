@@ -13,7 +13,7 @@ import { errorInterceptor } from './core/interceptors/error-interceptor';
 import { AuthService } from './core/services/auth.service';
 
 /**
- * App Configuration — Antigravity Protocol (Phase 1)
+ * App Configuration
  *
  * Security features:
  * ─────────────────────────────────────────────────

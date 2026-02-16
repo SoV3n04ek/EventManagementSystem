@@ -4,7 +4,7 @@ import { AuthService } from '../services/auth.service';
 import { catchError, throwError } from 'rxjs';
 
 /**
- * Error Interceptor — Antigravity Protocol (Phase 1)
+ * Error Interceptor
  *
  * Handles global HTTP error responses:
  * - 401 Unauthorized → clears session state and redirects to /login.

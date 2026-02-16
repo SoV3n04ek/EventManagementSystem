@@ -1,7 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
 /**
- * Auth Interceptor — Antigravity Protocol (Phase 1)
+ * Auth Interceptor
  *
  * With HttpOnly cookies, the browser manages token transmission automatically.
  * This interceptor ensures `withCredentials: true` is set on every outgoing

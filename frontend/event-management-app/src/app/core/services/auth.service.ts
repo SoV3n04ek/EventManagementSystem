@@ -6,7 +6,7 @@ import { environment } from '../../../environments/environment';
 import { AuthResponse, LoginRequest, RegisterRequest, User } from '../../models/user';
 
 /**
- * AuthService — Antigravity Protocol (Phase 1)
+ * AuthService
  *
  * Architecture decisions:
  * ─────────────────────────────────────────────────────────────
@@ -41,8 +41,8 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register`, data);
   }
 
-  login(credentials: LoginRequest): Observable<{ data: AuthResponse }> {
-    return this.http.post<{ data: AuthResponse }>(`${this.apiUrl}/login`, credentials)
+  login(credentials: LoginRequest): Observable<{ data: { user: User } }> {
+    return this.http.post<{ data: { user: User } }>(`${this.apiUrl}/login`, credentials)
       .pipe(
         tap(response => {
           // The server sets the HttpOnly cookie automatically.
@@ -71,15 +71,22 @@ export class AuthService {
   /**
    * Bootstrap method — called via provideAppInitializer() in app.config.ts.
    *
-   * Attempts to rehydrate the session by calling /auth/me.
-   * The browser automatically sends the HttpOnly cookie, so if the user
-   * has a valid session, the server returns the User object.
+   * Step 1: Purge any stale localStorage tokens from pre-refactor sessions.
+   * Step 2: Attempt to rehydrate the session from the HttpOnly cookie
+   *         by calling /auth/me.
    *
    * On failure (401 / network error), the user simply isn't authenticated.
    * This resolves silently — no redirect, no error message.
    * The error interceptor skips /auth/me URLs to prevent redirect loops.
    */
   loadCurrentUser(): Promise<void> {
+    // ── Migration cleanup: purge stale localStorage tokens ──
+    try {
+      localStorage.removeItem('auth_token');
+    } catch {
+      // Ignore SSR or restricted environments
+    }
+
     return firstValueFrom(
       this.http.get<User>(`${this.apiUrl}/me`).pipe(
         tap(user => this.currentUser.set(user)),

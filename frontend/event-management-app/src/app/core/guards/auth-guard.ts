@@ -3,7 +3,7 @@ import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 /**
- * Auth Guard — Antigravity Protocol (Phase 1)
+ * Auth Guard
  *
  * Reads from AuthService.isAuthenticated (computed Signal),
  * which is guaranteed to be resolved by provideAppInitializer()
