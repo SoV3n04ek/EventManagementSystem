@@ -1,0 +1,18 @@
+# Ignore the heavy stuff
+node_modules/
+.angular/
+
+# Ignore local builds
+dist/
+
+# Ignore git and IDE settings
+.git
+.editorconfig
+.vscode/
+
+# Ignore documentation
+README.md
+
+# Ignore the Dockerfile itself
+Dockerfile
+.dockerignore

@@ -55,10 +55,10 @@ export interface CalendarEventDto {
 }
 
 export interface CalendarViewDto {
-  events: CalendarEventDto[];
-  startDate: Date;
-  endDate: Date;
-  viewType: string;
+    events: CalendarEventDto[];
+    startDate: Date;
+    endDate: Date;
+    viewType: string;
 }
 
 export interface CalendarEvent {
@@ -72,5 +72,6 @@ export interface CalendarEvent {
     participantCount: number;
     capacity?: number;
     isFull: boolean;
+    isOrganizer: boolean;
     color?: string;
 }

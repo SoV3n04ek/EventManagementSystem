@@ -1,99 +1,98 @@
-import { Component } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  computed,
+  signal,
+  inject,
+  input
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { EventService } from '../../../core/services/event.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { defer, BehaviorSubject } from 'rxjs';
-import { switchMap, map, catchError, tap, finalize, shareReplay } from 'rxjs/operators';
 import { Event } from '../../../models/event';
 
+/**
+ * EventDetailComponent — Single Event View
+ *
+ * Architecture:
+ * ─────────────────────────────────────────────────────────────
+ * 1. Route param `id` bound as input() signal via
+ *    withComponentInputBinding() — no ActivatedRoute needed.
+ * 2. rxResource keyed on id signal — auto-refetches when
+ *    navigating between event details.
+ * 3. Loading/error states from resource — no BehaviorSubject.
+ * 4. Mutations (join/leave/delete) call .reload() on success.
+ * ─────────────────────────────────────────────────────────────
+ */
 @Component({
   selector: 'app-event-detail',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './event-detail.html',
-  styleUrl: './event-detail.css'
+  styleUrl: './event-detail.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EventDetailComponent {
-  private loadingSubject = new BehaviorSubject<boolean>(true);
-  private errorSubject = new BehaviorSubject<string>('');
+  private readonly router = inject(Router);
+  private readonly eventService = inject(EventService);
+  private readonly authService = inject(AuthService);
 
-  loading$ = this.loadingSubject.asObservable();
-  error$ = this.errorSubject.asObservable();
+  // ── Route param bound via withComponentInputBinding() ──
+  readonly id = input<string>();
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private eventService: EventService,
-    private authService: AuthService
-  ) {}
+  /** Parsed numeric ID from route param */
+  private readonly eventId = computed(() => {
+    const raw = this.id();
+    return raw ? Number(raw) : null;
+  });
 
-  event$ = defer(() => this.route.paramMap.pipe(
-    map(pm => Number(pm.get('id'))),
-    tap(() => {
-      this.loadingSubject.next(true);
-      this.errorSubject.next('');
-    }),
-    switchMap(id => {
+  // ── Action error (for join/leave/delete failures) ──
+  readonly actionError = signal('');
+
+  /** rxResource: auto-fetches when eventId() changes */
+  readonly eventResource = rxResource<Event, number | null>({
+    params: () => this.eventId(),
+    stream: ({ params: id }) => {
       if (!id || isNaN(id)) {
-        this.errorSubject.next('Invalid event ID');
-        this.loadingSubject.next(false);
-        return [null];
+        throw new Error('Invalid event ID');
       }
-      
-      return this.eventService.getEventById(id).pipe(
-        catchError(err => {
-          console.error('Error loading event:', err);
-          this.errorSubject.next('Failed to load event details');
-          return [null];
-        }),
-        finalize(() => this.loadingSubject.next(false))
-      );
-    }),
-    shareReplay({ bufferSize: 1, refCount: true })
-  ));
+      return this.eventService.getEventById(id);
+    }
+  });
 
-  get currentUser() {
-    return this.authService.currentUser();
-  }
+  // ── Derived State ──
+  readonly currentUser = computed(() => this.authService.currentUser());
 
-
-  isOrganizer(event: Event): boolean {
-    const user = this.currentUser;
+  readonly isOrganizer = computed(() => {
+    const user = this.currentUser();
+    const event: Event | undefined = this.eventResource.value();
     return !!user && !!event && event.organizerId === user.id;
-  }
+  });
 
-  isParticipant(event: Event): boolean {
-    const user = this.currentUser;
-    return !!user && !!event && event.participants?.some(p => p.id === user.id);
-  }
+  readonly isParticipant = computed(() => {
+    const user = this.currentUser();
+    const event: Event | undefined = this.eventResource.value();
+    return !!user && !!event && (event.participants?.some((p: any) => p.id === user.id) ?? false);
+  });
 
-  // Action methods
+  // ── Actions ──
+
   joinEvent(eventId: number): void {
     this.eventService.joinEvent(eventId).subscribe({
-      next: () => {
-        // Reload event by re-navigating (triggers event$ reload)
-        this.router.navigate(['/events', eventId], { 
-          queryParams: { refresh: Date.now() } 
-        });
-      },
+      next: () => this.eventResource.reload(),
       error: (err) => {
-        console.error('Failed to join event:', err);
-        this.errorSubject.next(err?.error?.message || 'Failed to join event');
+        this.actionError.set(err?.error?.message || 'Failed to join event');
       }
     });
   }
 
   leaveEvent(eventId: number): void {
     this.eventService.leaveEvent(eventId).subscribe({
-      next: () => {
-        this.router.navigate(['/events', eventId], { 
-          queryParams: { refresh: Date.now() } 
-        });
-      },
+      next: () => this.eventResource.reload(),
       error: (err) => {
-        console.error('Failed to leave event:', err);
-        this.errorSubject.next(err?.error?.message || 'Failed to leave event');
+        this.actionError.set(err?.error?.message || 'Failed to leave event');
       }
     });
   }
@@ -107,8 +106,7 @@ export class EventDetailComponent {
       this.eventService.deleteEvent(eventId).subscribe({
         next: () => this.router.navigate(['/events']),
         error: (err) => {
-          console.error('Failed to delete event:', err);
-          this.errorSubject.next(err?.error?.message || 'Failed to delete event');
+          this.actionError.set(err?.error?.message || 'Failed to delete event');
         }
       });
     }
