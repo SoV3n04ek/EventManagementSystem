@@ -8,6 +8,7 @@ COPY EventManagement.Api/*.csproj ./EventManagement.Api/
 COPY EventManagement.Application/*.csproj ./EventManagement.Application/
 COPY EventManagement.Domain/*.csproj ./EventManagement.Domain/
 COPY EventManagement.Infrastructure/*.csproj ./EventManagement.Infrastructure/
+COPY EventManagement.IntegrationTests/*.csproj ./EventManagement.IntegrationTests/
 
 # Clear any local NuGet config and restore
 RUN dotnet nuget locals all --clear

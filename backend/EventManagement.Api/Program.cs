@@ -165,45 +165,87 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Applying migrations
-using (var scope = app.Services.CreateScope())
+// Applying migrations (skip in Testing environment — no real DB)
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var services = scope.ServiceProvider;
-
-    try
-    {
-        var context = services.GetRequiredService<EventManagementDbContext>();
-        await context.Database.MigrateAsync();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
-    }
-}
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    // Seeding
-
     using (var scope = app.Services.CreateScope())
     {
         var services = scope.ServiceProvider;
 
         try
         {
-            var seeder = services.GetRequiredService<IDatabaseSeeder>();
-            await seeder.SeedAsync();
+            var context = services.GetRequiredService<EventManagementDbContext>();
+            await context.Database.MigrateAsync();
         }
         catch (Exception ex)
         {
             var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while seeding the database.");
+            logger.LogError(ex, "An error occurred while migrating the database.");
+        }
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+        // Seeding
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+
+            try
+            {
+                var seeder = services.GetRequiredService<IDatabaseSeeder>();
+                await seeder.SeedAsync();
+            }
+            catch (Exception ex)
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                logger.LogError(ex, "An error occurred while seeding the database.");
+            }
         }
     }
 }
+
+// ── Security Headers Middleware ──
+// Placed FIRST in the response pipeline so even error pages carry protection.
+// CSP prevents XSS by restricting where scripts/styles/connections can originate.
+// Combined with HttpOnly auth cookies + XSRF identity binding, this completes
+// the defense-in-depth perimeter:
+//   - HttpOnly cookie  → attacker can't READ the JWT via JS
+//   - CSP connect-src  → attacker can't EXFILTRATE the XSRF-TOKEN to external domains
+//   - XSRF validation  → attacker can't FORGE requests without the bound token
+app.Use(async (context, next) =>
+{
+    // ── Content Security Policy ──
+    // Angular requires 'unsafe-inline' for component-scoped styles (injected <style> tags).
+    // A nonce-based alternative would need custom build tooling + server-rendered nonce per
+    // request — impractical for an SPA. This is the standard Angular CSP trade-off.
+    var csp = string.Join("; ",
+        "default-src 'self'",
+        app.Environment.IsDevelopment()
+            ? "script-src 'self' 'unsafe-eval'"      // Angular JIT / HMR needs eval in dev
+            : "script-src 'self'",                    // Strict in production
+        "style-src 'self' 'unsafe-inline'",           // Angular component styles
+        "img-src 'self' data: https:",                // Local + data URIs + secure external
+        app.Environment.IsDevelopment()
+            ? "connect-src 'self' http://localhost:5000 http://localhost:4200 ws://localhost:4200"
+            : "connect-src 'self'",                   // Only same-origin in production
+        "frame-ancestors 'none'",                     // Clickjacking prevention
+        "base-uri 'self'",                            // Prevent <base> tag hijacking
+        "form-action 'self'"                          // Prevent form submission to external domains
+    );
+
+    context.Response.Headers["Content-Security-Policy"] = csp;
+
+    // ── Additional Security Headers ──
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";       // Prevent MIME-sniffing
+    context.Response.Headers["X-Frame-Options"] = "DENY";                 // Clickjacking (legacy fallback)
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+    await next();
+});
 
 app.UseCors();
 
@@ -260,3 +302,8 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 app.MapControllers();
 
 app.Run();
+
+// ── Required for WebApplicationFactory<Program> in integration tests ──
+// Top-level statements generate an implicit Program class that is internal.
+// This partial class declaration makes it accessible to the test project.
+public partial class Program { }
