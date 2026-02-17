@@ -10,6 +10,8 @@ export interface Event {
     organizerId: number;
     participantCount: number;
     participants: Participant[];
+    isOrganizer: boolean;
+    isParticipant: boolean;
 }
 
 export interface EventListItem {
@@ -20,6 +22,8 @@ export interface EventListItem {
     location: string;
     participantCount: number;
     isFull: boolean;
+    isOrganizer: boolean;
+    isParticipant: boolean;
 }
 
 export interface CreateEventRequest {

@@ -4,8 +4,8 @@ namespace EventManagement.Application.Interfaces
 {
     public interface IEventService
     {
-        Task<IEnumerable<EventListDto>> GetPublicEventsAsync();
-        Task<EventDetailDto?> GetEventByIdAsync(int id);
+        Task<IEnumerable<EventListDto>> GetPublicEventsAsync(int? currentUserId = null);
+        Task<EventDetailDto?> GetEventByIdAsync(int id, int? currentUserId = null);
         Task<CalendarViewDto> GetUserCalendarAsync(int userId, DateTime startDate, DateTime endDate, string viewType);
         Task<IEnumerable<EventListDto>> GetUserEventsAsync(int userId);
         Task<int> CreateEventAsync(CreateEventDto dto, int organizerId);

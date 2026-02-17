@@ -16,5 +16,9 @@ namespace EventManagement.Application.DTOs.EventDtos
         public int ParticipantCount { get; set; }
 
         public List<ParticipantDto> Participants { get; set; } = new();
+        
+        // Identity-aware flags for reactive frontend state
+        public bool IsOrganizer { get; set; }
+        public bool IsParticipant { get; set; }
     }
 }

@@ -28,7 +28,8 @@ namespace EventManagement.Api.Controller
         [ProducesResponseType(typeof(IEnumerable<EventListDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetPublicEvents()
         {
-            var events = await _eventService.GetPublicEventsAsync();
+            var currentUserId = User.Identity?.IsAuthenticated == true ? GetCurrentUserId() : (int?)null;
+            var events = await _eventService.GetPublicEventsAsync(currentUserId);
             return Ok(events);
         }
 
@@ -42,7 +43,8 @@ namespace EventManagement.Api.Controller
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetEventById(int eventId)
         {
-            var ev = await _eventService.GetEventByIdAsync(eventId);
+            var currentUserId = User.Identity?.IsAuthenticated == true ? GetCurrentUserId() : (int?)null;
+            var ev = await _eventService.GetEventByIdAsync(eventId, currentUserId);
 
             return Ok(ev);
         }

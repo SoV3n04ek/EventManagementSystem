@@ -7,7 +7,7 @@ namespace EventManagement.Application.Mapping
 {
     public static class MappingExtensions
     {
-        public static EventListDto ToListDto(this Event ev) =>
+        public static EventListDto ToListDto(this Event ev, int? currentUserId = null) =>
             new()
             {
                 Id = ev.Id,
@@ -18,10 +18,13 @@ namespace EventManagement.Application.Mapping
                 EventDate = ev.EventDate,
                 Location = ev.Location,
                 ParticipantCount = ev.ParticipantCount,
-                IsFull = ev.IsFull
+                IsFull = ev.IsFull,
+                IsOrganizer = currentUserId.HasValue && ev.OrganizerId == currentUserId.Value,
+                IsParticipant = currentUserId.HasValue && ev.Participants.Any(p => p.UserId == currentUserId.Value)
             };
 
-        public static EventDetailDto ToDetailDto(this Event ev) =>
+
+        public static EventDetailDto ToDetailDto(this Event ev, int? currentUserId = null) =>
             new()
             {
                 Id = ev.Id,
@@ -40,7 +43,9 @@ namespace EventManagement.Application.Mapping
                 {
                     Id = p.User.Id,
                     Name = p.User.Name
-                }).ToList()
+                }).ToList(),
+                IsOrganizer = currentUserId.HasValue && ev.OrganizerId == currentUserId.Value,
+                IsParticipant = currentUserId.HasValue && ev.Participants.Any(p => p.UserId == currentUserId.Value)
             };
 
         public static UserDto ToUserDto(this User user) =>

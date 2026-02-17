@@ -28,14 +28,14 @@ namespace EventManagement.Application.Services
         }
 
         // GET /events
-        public async Task<IEnumerable<EventListDto>> GetPublicEventsAsync()
+        public async Task<IEnumerable<EventListDto>> GetPublicEventsAsync(int? currentUserId = null)
         {
             var events = await _eventRepository.GetPublicEventsAsync();
-            return events.Select(e => e.ToListDto());
+            return events.Select(e => e.ToListDto(currentUserId));
         }
 
         // GET /events/{id}
-        public async Task<EventDetailDto?> GetEventByIdAsync(int id)
+        public async Task<EventDetailDto?> GetEventByIdAsync(int id, int? currentUserId = null)
         {
             var ev = await _eventRepository.GetByIdAsync(id)
                 ?? throw new NotFoundException($"Event with ID {id} not found");
@@ -45,7 +45,7 @@ namespace EventManagement.Application.Services
                 _logger.LogWarning($"Access atempt to private event from user with id {id}");
             }
 
-            return ev.ToDetailDto();
+            return ev.ToDetailDto(currentUserId);
         }
 
         // GET 
@@ -105,7 +105,7 @@ namespace EventManagement.Application.Services
 
             return organized.Concat(joined)
                 .DistinctBy(e => e.Id)
-                .Select(e => e.ToListDto());
+                .Select(e => e.ToListDto(userId));
         }
 
         // POST /events
