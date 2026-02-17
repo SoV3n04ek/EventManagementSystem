@@ -10,6 +10,7 @@ export interface Event {
     organizerId: number;
     participantCount: number;
     participants: Participant[];
+    isFull: boolean;
     isOrganizer: boolean;
     isParticipant: boolean;
 }

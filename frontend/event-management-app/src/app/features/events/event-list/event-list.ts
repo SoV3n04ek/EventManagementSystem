@@ -10,20 +10,19 @@ import { FormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { EventService } from '../../../core/services/event.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../shared/services/toast.service';
 import { EventCardComponent } from '../../../shared/components/event-card/event-card';
 import { EventListItem } from '../../../models/event';
 
 /**
- * EventListComponent — Public Events Listing
+ * EventListComponent — Public Events Listing with Toast Integration
  *
  * Architecture:
  * ─────────────────────────────────────────────────────────────
  * 1. rxResource for data fetching — automatically provides
  *    .value(), .isLoading(), .error(), .status() signals.
- *    Eliminates BehaviorSubject + async pipe boilerplate.
- * 2. signal('') for search query — triggers computed() re-eval.
+ * 2. ToastService for global feedback (replaces local states)
  * 3. computed() for filtering — pure derivation, no side effects.
- *    Re-evaluates only when events or searchQuery change.
  * 4. OnPush — only re-renders when signal values change.
  * ─────────────────────────────────────────────────────────────
  */
@@ -38,14 +37,13 @@ import { EventListItem } from '../../../models/event';
 export class EventListComponent {
   private readonly eventService = inject(EventService);
   private readonly authService = inject(AuthService);
+  private readonly toastService = inject(ToastService);
 
   // ── Reactive State ──
   readonly searchQuery = signal('');
-  readonly successMessage = signal('');
-  readonly errorMessage = signal('');
 
-  /** rxResource auto-fetches on creation. Provides .value(), .isLoading(), .error() */
-  readonly eventsResource = rxResource<EventListItem[], unknown>({
+  /** rxResource auto-fetches on creation (Angular 20.3 API) */
+  readonly eventsResource = rxResource<EventListItem[], void>({
     stream: () => this.eventService.getPublicEvents()
   });
 
@@ -73,14 +71,15 @@ export class EventListComponent {
   handleJoinEvent(eventId: number): void {
     this.eventService.joinEvent(eventId).subscribe({
       next: () => {
-        this.successMessage.set('Successfully joined the event!');
+        this.toastService.show('Successfully joined the event!', 'success');
         this.eventsResource.reload();
-        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: (err) => {
-        const message = err.error?.message || err.error?.error || 'Failed to join event';
-        this.errorMessage.set(message);
-        setTimeout(() => this.errorMessage.set(''), 5000);
+        console.error('Error joining event:', err);
+        this.toastService.show(
+          err?.error?.message || 'Failed to join event',
+          'error'
+        );
       }
     });
   }
@@ -88,13 +87,15 @@ export class EventListComponent {
   handleLeaveEvent(eventId: number): void {
     this.eventService.leaveEvent(eventId).subscribe({
       next: () => {
-        this.successMessage.set('You have left the event.');
-        this.eventsResource.reload(); // Refresh the list to flip the UI state
-        setTimeout(() => this.successMessage.set(''), 3000);
+        this.toastService.show('You have left the event', 'success');
+        this.eventsResource.reload();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to leave event');
-        setTimeout(() => this.errorMessage.set(''), 5000);
+        console.error('Error leaving event:', err);
+        this.toastService.show(
+          err?.error?.message || 'Failed to leave event',
+          'error'
+        );
       }
     });
   }

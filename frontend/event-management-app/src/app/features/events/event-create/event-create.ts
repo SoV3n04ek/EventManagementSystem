@@ -5,8 +5,10 @@ import {
   computed,
   inject,
   input,
-  OnInit
+  effect,
+  linkedSignal
 } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -20,17 +22,19 @@ import { Router } from '@angular/router';
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EventService } from '../../../core/services/event.service';
+import { ToastService } from '../../../shared/services/toast.service';
+import { Event } from '../../../models/event';
+import { of } from 'rxjs';
 
 /**
- * EventCreateComponent — Create / Edit Event
+ * EventCreateComponent — Unified Create/Edit State Machine
  *
  * Architecture:
  * ─────────────────────────────────────────────────────────────
- * 1. Route data `id` bound via input() + withComponentInputBinding()
- * 2. isEdit is computed based on existence of id input.
- * 3. takeUntilDestroyed() replaces Subject + ngOnDestroy pattern.
- * 4. inject() for dependency injection.
- * 5. OnPush change detection with Signal-based state.
+ * 1. DECLARATIVE DATA FETCHING: rxResource bound to id() input
+ * 2. REACTIVE FORM HYDRATION: linkedSignal + effect for form sync
+ * 3. SECURITY: Computed isForbidden signal prevents unauthorized edits
+ * 4. ZONELESS-READY: No imperative lifecycle logic
  * ─────────────────────────────────────────────────────────────
  */
 @Component({
@@ -41,18 +45,66 @@ import { EventService } from '../../../core/services/event.service';
   styleUrl: './event-create.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class EventCreateComponent implements OnInit {
+export class EventCreateComponent {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly eventService = inject(EventService);
+  private readonly toastService = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ── Route-bound inputs via withComponentInputBinding() ──
   readonly id = input<string>();
 
+  // ── DECLARATIVE DATA FETCHING with rxResource (Angular 20.3 API) ──
+  readonly eventResource = rxResource<Event | null, { id: string | undefined }>({
+    params: () => ({ id: this.id() }),
+    stream: ({ params }) => {
+      if (!params.id) return of(null);
+      return this.eventService.getEventById(Number(params.id));
+    }
+  });
+
+  // ── REACTIVE FORM HYDRATION with linkedSignal ──
+  readonly formData = linkedSignal(() => {
+    const event = this.eventResource.value();
+    if (!event) {
+      return {
+        name: '',
+        description: '',
+        eventDate: '',
+        location: '',
+        capacity: null as number | null,
+        isPublic: true
+      };
+    }
+    return {
+      name: event.name,
+      description: event.description || '',
+      eventDate: this.formatDateForInput(event.eventDate),
+      location: event.location,
+      capacity: event.capacity ?? null,
+      isPublic: event.isPublic
+    };
+  });
+
+  // ── Sync formData to eventForm (single source of truth) ──
+  constructor() {
+    effect(() => {
+      const data = this.formData();
+      this.eventForm.patchValue(data, { emitEvent: false });
+    });
+  }
+
+  // ── SECURITY: Computed access control ──
+  readonly isForbidden = computed(() => {
+    const id = this.id();
+    const event = this.eventResource.value();
+    return !!id && !!event && !event.isOrganizer;
+  });
+
   // ── Derived State (Signals) ──
   readonly isEdit = computed(() => !!this.id());
-  readonly loading = signal(false);
+  readonly loading = computed(() => this.eventResource.isLoading());
   readonly errorMessage = signal('');
 
   readonly pageTitle = computed(() =>
@@ -87,100 +139,79 @@ export class EventCreateComponent implements OnInit {
     isPublic: [true, [Validators.required]]
   });
 
-  ngOnInit(): void {
-    if (this.isEdit() && this.id()) {
-      this.loadEventForEditing(Number(this.id()));
-    }
+  /**
+   * Date validator: Ensures event date is in the future
+   */
+  private futureDateValidator(control: AbstractControl): ValidationErrors | null {
+    if (!control.value) return null;
+    const inputDate = new Date(control.value);
+    const now = new Date();
+    return inputDate > now ? null : { futureDate: 'Event date must be in the future' };
   }
 
-  private loadEventForEditing(eventId: number): void {
-    this.loading.set(true);
-
-    this.eventService.getEventById(eventId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (event) => {
-          this.eventForm.patchValue({
-            name: event.name,
-            description: event.description || '',
-            eventDate: this.formatDateForInput(event.eventDate),
-            location: event.location,
-            capacity: event.capacity,
-            isPublic: event.isPublic
-          });
-          this.loading.set(false);
-        },
-        error: (err) => {
-          console.error('Error loading event:', err);
-          this.errorMessage.set('Failed to load event for editing');
-          this.loading.set(false);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
+  /**
+   * Format ISO date to datetime-local input format
+   */
+  private formatDateForInput(dateValue: Date | string): string {
+    const date = new Date(dateValue);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
+  /**
+   * Get minimum datetime for input validation
+   */
+  getMinDateTime(): string {
+    const now = new Date();
+    return this.formatDateForInput(now);
+  }
+
+  /**
+   * Form submission handler
+   */
   onSubmit(): void {
     if (this.eventForm.invalid) {
       this.eventForm.markAllAsTouched();
       return;
     }
 
-    this.loading.set(true);
-    this.errorMessage.set('');
+    if (this.isForbidden()) {
+      this.toastService.show('You are not authorized to edit this event', 'error');
+      return;
+    }
 
     const formValue = this.eventForm.value;
-    const eventData = {
-      ...formValue,
-      eventDate: new Date(formValue.eventDate).toISOString(),
-      capacity: formValue.capacity || null
-    };
-
     const operation$ = this.isEdit()
-      ? this.eventService.updateEvent(Number(this.id()!), eventData)
-      : this.eventService.createEvent(eventData);
+      ? this.eventService.updateEvent(Number(this.id()), formValue)
+      : this.eventService.createEvent(formValue);
 
     operation$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
-          if (this.isEdit()) {
-            this.router.navigate(['/events', this.id()]);
-          } else {
-            this.router.navigate(['/events', (result as any).id]);
-          }
+          const eventId = this.isEdit() ? Number(this.id()) : (result as any).id;
+          this.toastService.show(
+            this.isEdit() ? 'Event updated successfully!' : 'Event created successfully!',
+            'success'
+          );
+          this.router.navigate(['/events', eventId]);
         },
         error: (err) => {
+          console.error('Error saving event:', err);
           this.errorMessage.set(
-            err.error?.message || err.error?.error || 'Failed to save event'
+            err?.error?.message || 'Failed to save event. Please try again.'
           );
-          this.loading.set(false);
+          this.toastService.show('Failed to save event', 'error');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       });
   }
 
   goBack(): void {
-    if (this.isEdit() && this.id()) {
-      this.router.navigate(['/events', this.id()]);
-    } else {
-      this.router.navigate(['/events']);
-    }
-  }
-
-  getMinDateTime(): string {
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  }
-
-  private futureDateValidator(control: AbstractControl): ValidationErrors | null {
-    if (!control.value) return null;
-    return new Date(control.value) > new Date() ? null : { futureDate: true };
-  }
-
-  private formatDateForInput(dateStr: string | Date): string {
-    const date = new Date(dateStr);
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    this.router.navigate(['/events']);
   }
 }

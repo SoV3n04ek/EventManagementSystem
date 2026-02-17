@@ -18,15 +18,6 @@
   </div>
   }
 
-  <!-- Action Error -->
-  @if (actionError()) {
-  <div class="max-w-4xl mx-auto px-4 pt-4">
-    <div class="rounded-md bg-red-50 p-4">
-      <p class="text-sm text-red-800">{{ actionError() }}</p>
-    </div>
-  </div>
-  }
-
   <!-- Event Details -->
   @if (eventResource.value(); as event) {
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -56,26 +47,26 @@
         @if (currentUser()) {
         <div class="flex gap-3 mb-6 pb-6 border-b border-gray-200">
           @if (isOrganizer()) {
-          <button (click)="editEvent(event.id)"
+          <button (click)="editEvent()"
             class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium">
             Edit Event
           </button>
-          <button (click)="deleteEvent(event.id)"
+          <button (click)="deleteEvent()"
             class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium">
             Delete Event
           </button>
           } @else {
           @if (isParticipant()) {
-          <button (click)="leaveEvent(event.id)"
+          <button (click)="leaveEvent()"
             class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium">
             Leave Event
           </button>
-          } @else if (event.capacity && event.participantCount >= event.capacity) {
-          <button disabled class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed font-medium">
+          } @else if (event.isFull) {
+          <button disabled class="bg-gray-300 text-gray-500 cursor-not-allowed flex-1 px-4 py-2 rounded-md font-medium">
             Event is Full
           </button>
           } @else {
-          <button (click)="joinEvent(event.id)"
+          <button (click)="joinEvent()"
             class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium">
             Join Event
           </button>
