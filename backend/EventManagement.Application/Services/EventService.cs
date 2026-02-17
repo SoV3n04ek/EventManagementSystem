@@ -55,7 +55,7 @@ namespace EventManagement.Application.Services
             var user = await _userRepository.GetByIdAsync(userId)
                 ?? throw new NotFoundException($"User with id {userId} not found");
 
-            // Get organized events in data range
+            // Get organized events
             var organizedEvents = user.OrganizedEvents
                 .Where(e => e.EventDate >= startDate && e.EventDate <= endDate)
                 .Select(e => new CalendarEventDto
@@ -68,7 +68,7 @@ namespace EventManagement.Application.Services
                     IsOrganizer = true
                 });
 
-            // Get participating events in data range
+            // Get participating events
             var participatingEvents = user.Participations
                 .Select(p => p.Event)
                 .Where(e => e.EventDate >= startDate && e.EventDate <= endDate)
@@ -82,7 +82,12 @@ namespace EventManagement.Application.Services
                     IsOrganizer = false
                 });
 
-            var allEvents = organizedEvents.Concat(participatingEvents).ToList();
+            // Combine and remove duplicates by ID, prioritizing the Organizer status
+            var allEvents = organizedEvents
+                .Concat(participatingEvents)
+                .GroupBy(e => e.Id)
+                .Select(g => g.OrderByDescending(e => e.IsOrganizer).First())
+                .ToList();
 
             return new CalendarViewDto
             {
@@ -118,7 +123,7 @@ namespace EventManagement.Application.Services
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                EventDate = dto.EventDate,
+                EventDate = DateTime.SpecifyKind(dto.EventDate, DateTimeKind.Utc),
                 Location = dto.Location,
                 Capacity = dto.Capacity,
                 IsPublic = dto.IsPublic,
@@ -149,7 +154,9 @@ namespace EventManagement.Application.Services
 
             ev.Name = dto.Name ?? ev.Name;
             ev.Description = dto.Description ?? ev.Description;
-            ev.EventDate = dto.EventDate ?? ev.EventDate;
+            ev.EventDate = dto.EventDate.HasValue
+                ? DateTime.SpecifyKind(dto.EventDate.Value, DateTimeKind.Utc)
+                : ev.EventDate;
             ev.Location = dto.Location ?? ev.Location;
             ev.Capacity = dto.Capacity ?? ev.Capacity;
             ev.IsPublic = dto.IsPublic ?? ev.IsPublic;

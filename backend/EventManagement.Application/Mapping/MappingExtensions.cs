@@ -44,6 +44,7 @@ namespace EventManagement.Application.Mapping
                     Id = p.User.Id,
                     Name = p.User.Name
                 }).ToList(),
+                IsFull = ev.Capacity.HasValue && ev.Participants.Count >= ev.Capacity.Value,
                 IsOrganizer = currentUserId.HasValue && ev.OrganizerId == currentUserId.Value,
                 IsParticipant = currentUserId.HasValue && ev.Participants.Any(p => p.UserId == currentUserId.Value)
             };

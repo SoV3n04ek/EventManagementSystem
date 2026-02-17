@@ -20,5 +20,6 @@ namespace EventManagement.Application.DTOs.EventDtos
         // Identity-aware flags for reactive frontend state
         public bool IsOrganizer { get; set; }
         public bool IsParticipant { get; set; }
+        public bool IsFull { get; set; }
     }
 }

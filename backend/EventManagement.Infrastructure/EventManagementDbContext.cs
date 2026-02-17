@@ -46,5 +46,38 @@ namespace EventManagement.Infrastructure
                 .HasIndex(p => new { p.EventId, p.UserId })
                 .IsUnique();
         }
+
+        /// <summary>
+        /// Global safety guard: Normalize all DateTime properties to UTC before save.
+        /// PostgreSQL 'timestamp with time zone' requires DateTimeKind.Utc.
+        /// </summary>
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State is EntityState.Added or EntityState.Modified)
+                {
+                    foreach (var prop in entry.Properties)
+                    {
+                        if (prop.Metadata.ClrType == typeof(DateTime) && prop.CurrentValue is DateTime dt)
+                        {
+                            if (dt.Kind == DateTimeKind.Unspecified)
+                            {
+                                prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                            }
+                        }
+                        else if (prop.Metadata.ClrType == typeof(DateTime?) && prop.CurrentValue is DateTime ndt)
+                        {
+                            if (ndt.Kind == DateTimeKind.Unspecified)
+                            {
+                                prop.CurrentValue = DateTime.SpecifyKind(ndt, DateTimeKind.Utc);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
+        }
     }
 }
