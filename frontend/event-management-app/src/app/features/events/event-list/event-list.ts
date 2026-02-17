@@ -84,4 +84,18 @@ export class EventListComponent {
       }
     });
   }
+
+  handleLeaveEvent(eventId: number): void {
+    this.eventService.leaveEvent(eventId).subscribe({
+      next: () => {
+        this.successMessage.set('You have left the event.');
+        this.eventsResource.reload(); // Refresh the list to flip the UI state
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to leave event');
+        setTimeout(() => this.errorMessage.set(''), 5000);
+      }
+    });
+  }
 }

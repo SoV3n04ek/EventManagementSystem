@@ -1,0 +1,30 @@
+@if (toast(); as t) {
+<div class="toast-container" [@slideIn]>
+    <div class="toast" [class.toast-success]="t.type === 'success'" [class.toast-error]="t.type === 'error'"
+        role="alert">
+
+        <div class="toast-content">
+            <!-- Icon -->
+            @if (t.type === 'success') {
+            <svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            } @else {
+            <svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            }
+
+            <!-- Message -->
+            <p class="toast-message">{{ t.msg }}</p>
+        </div>
+
+        <!-- Dismiss button -->
+        <button type="button" class="toast-dismiss" (click)="onDismiss()" aria-label="Dismiss notification">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+</div>
+}

@@ -57,18 +57,36 @@
       </div>
     </div>
 
-    <!-- Actions -->
+    <!-- Actions (State-Aware) -->
     <div class="flex items-center gap-2 pt-4 border-t border-gray-200">
       <a [routerLink]="['/events', event().id]"
         class="flex-1 text-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium">
         View Details
       </a>
 
-      @if (showJoinButton()) {
+      @if (isOrganizer()) {
+      <!-- Organizer: Show Edit button -->
+      <a [routerLink]="['/events', event().id, 'edit']"
+        class="flex-1 text-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors text-sm font-medium">
+        Edit Event
+      </a>
+      } @else if (isJoined()) {
+      <!-- Participant: Show Leave button with Joined badge -->
+      <div class="flex-1 flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+          ✓ Joined
+        </span>
+        <button (click)="onLeave()"
+          class="flex-1 px-3 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors text-sm font-medium">
+          Leave
+        </button>
+      </div>
+      } @else {
+      <!-- Not joined: Show Join button (disabled if full) -->
       @if (event().isFull) {
       <button disabled
         class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed text-sm font-medium">
-        Full
+        Event Full
       </button>
       } @else {
       <button (click)="onJoin()"
@@ -76,13 +94,6 @@
         Join Event
       </button>
       }
-      }
-
-      @if (showLeaveButton()) {
-      <button (click)="onLeave()"
-        class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium">
-        Leave Event
-      </button>
       }
     </div>
   </div>

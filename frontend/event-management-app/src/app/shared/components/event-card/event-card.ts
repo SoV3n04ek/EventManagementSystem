@@ -10,12 +10,13 @@ import { EventListItem } from '../../../models/event';
 import { RouterLink } from '@angular/router';
 
 /**
- * EventCardComponent — Pure presentational card.
+ * EventCardComponent — Pure presentational card with identity-aware state.
  *
  * Signal-based inputs enable fine-grained reactivity:
  * - input() signals participate in the reactive graph (computed can depend on them)
  * - output() signals provide type-safe event emission
  * - OnPush + Signals = zoneless-ready, only re-renders when inputs actually change
+ * - computed() for button state derived from DTO flags
  */
 @Component({
   selector: 'app-event-card',
@@ -28,12 +29,14 @@ import { RouterLink } from '@angular/router';
 export class EventCardComponent {
   // ── Signal Inputs ──
   readonly event = input.required<EventListItem>();
-  readonly showJoinButton = input(false);
-  readonly showLeaveButton = input(false);
 
   // ── Signal Outputs ──
   readonly join = output<number>();
   readonly leave = output<number>();
+
+  // ── Computed State (derived from DTO flags) ──
+  readonly isJoined = computed(() => this.event().isParticipant);
+  readonly isOrganizer = computed(() => this.event().isOrganizer);
 
   // ── Computed (memoized, runs only when event() changes) ──
   readonly formattedDate = computed(() => {
