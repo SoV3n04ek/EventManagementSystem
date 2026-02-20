@@ -2,16 +2,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy projects individually to cache 'dotnet restore' layer
-COPY ["EventManagement.Api/EventManagement.Api.csproj", "EventManagement.Api/"]
-COPY ["EventManagement.Application/EventManagement.Application.csproj", "EventManagement.Application/"]
-COPY ["EventManagement.Domain/EventManagement.Domain.csproj", "EventManagement.Domain/"]
-COPY ["EventManagement.Infrastructure/EventManagement.Infrastructure.csproj", "EventManagement.Infrastructure/"]
+# Update paths to include the 'backend' prefix
+COPY ["backend/EventManagement.Api/EventManagement.Api.csproj", "EventManagement.Api/"]
+COPY ["backend/EventManagement.Application/EventManagement.Application.csproj", "EventManagement.Application/"]
+COPY ["backend/EventManagement.Domain/EventManagement.Domain.csproj", "EventManagement.Domain/"]
+COPY ["backend/EventManagement.Infrastructure/EventManagement.Infrastructure.csproj", "EventManagement.Infrastructure/"]
 
 RUN dotnet restore "EventManagement.Api/EventManagement.Api.csproj"
 
-# Copy the rest of the source
-COPY . .
+# Copy everything from the backend folder
+COPY backend/ . 
 WORKDIR "/src/EventManagement.Api"
 
 # Build and Publish
