@@ -203,6 +203,8 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+app.MapGet("/", () => "API is running");
+
 // Applying migrations (skip in Testing environment — no real DB)
 if (!app.Environment.IsEnvironment("Testing"))
 {
@@ -244,11 +246,11 @@ if (!app.Environment.IsEnvironment("Testing"))
             }
         }
     }
-    else
-    {
+    /*
+    else {
         // Use HSTS in production (tells browsers to ONLY use HTTPS)
         app.UseHsts();
-    }
+    }*/
 }
 
 // ── Security Headers Middleware ──
@@ -345,7 +347,6 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 });
 
 app.MapControllers();
-app.MapGet("/", () => "API is running");
 
 app.Run();
 
