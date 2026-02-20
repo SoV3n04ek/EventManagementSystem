@@ -145,7 +145,12 @@ yarn-error.log*
 *.pem
 *.crt
 *.cer
-appsettings.Production.json
-appsettings.Staging.json
+
+# Ignore local secrets
+**/appsettings.Production.json
+**/appsettings.Staging.json
+**/appsettings.Development.json
+**/.env
+**/secrets.json
 
 quickstartcommands.txt

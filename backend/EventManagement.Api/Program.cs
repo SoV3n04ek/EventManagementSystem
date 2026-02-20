@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +32,7 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(
         builder.Configuration.GetConnectionString("DefaultConnection")!,
         name: "postgresql",
-        timeout: TimeSpan.FromSeconds(3),
+        timeout: TimeSpan.FromSeconds(15),
         tags: new[] { "db", "sql", "postgresql" }
     );
 
@@ -41,6 +43,12 @@ builder.Services.AddValidatorsFromAssemblyContaining<IUserService>();
 builder.Services.AddDbContext<EventManagementDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("CRITICAL: Connection string 'DefaultConnection' is null or empty! Check your Environment Variables.");
+    }
+
     options.UseNpgsql(connectionString);
 });
 
@@ -135,16 +143,26 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        var allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
-            ?? new[] { 
-                "http://localhost:4200", 
-                "http://localhost" 
-            };
+        // Azure will provide this via an environment variable named:
+        // CORS__AllowedOrigins__0
+        string[] allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>();
 
-        policy.WithOrigins(allowedOrigins)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
+        if (allowedOrigins == null || allowedOrigins.Length == 0)
+        {
+            // Fallback to Development if nothing is in JSON or Env Vars
+            policy.WithOrigins("https://localhost:4200")
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        }
+        else
+        {
+            // Use the origins found in configuration
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        }
     });
 });
 
@@ -163,7 +181,27 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddAuthorization();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    // Tells .NET to look for specific headers:
+    // X-Forwarded-For: The original user's IP address.
+    // X-Forwarded-Proto: Whether the user used HTTP or HTTPS.
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+   
+    // Security reset: By default, .NET only trusts local proxies (127.0.0.1).
+    // In cloud environments (Azure/AWS), we don't always know the internal IP of the proxy.
+    // Clearing these tells .NET to trust the headers coming from the cloud load balancer.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// for Antiforgery Keys in docker container
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(@"/home/app/.aspnet/DataProtection-Keys"));
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Applying migrations (skip in Testing environment — no real DB)
 if (!app.Environment.IsEnvironment("Testing"))
@@ -206,6 +244,11 @@ if (!app.Environment.IsEnvironment("Testing"))
             }
         }
     }
+    else
+    {
+        // Use HSTS in production (tells browsers to ONLY use HTTPS)
+        app.UseHsts();
+    }
 }
 
 // ── Security Headers Middleware ──
@@ -231,7 +274,7 @@ app.Use(async (context, next) =>
         "img-src 'self' data: https:",                // Local + data URIs + secure external
         app.Environment.IsDevelopment()
             ? "connect-src 'self' http://localhost:5000 http://localhost:4200 ws://localhost:4200"
-            : "connect-src 'self'",                   // Only same-origin in production
+            : "connect-src 'self' ",                   // Only same-origin in production
         "frame-ancestors 'none'",                     // Clickjacking prevention
         "base-uri 'self'",                            // Prevent <base> tag hijacking
         "form-action 'self'"                          // Prevent form submission to external domains
@@ -269,9 +312,11 @@ app.Use(async (context, next) =>
     context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions
     {
         HttpOnly = false,        // Angular must read this via document.cookie
-        Secure = false,          // Allow over HTTP in development
+        Secure = !app.Environment.IsDevelopment(), // TRUE IN PRODUCTION | Allow over HTTP in development
         SameSite = SameSiteMode.Strict,
-        Path = "/"
+        Path = "/",
+        // The cookie is only sent over https in prod
+        IsEssential = true
     });
 
     await next(context);
@@ -300,6 +345,7 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 });
 
 app.MapControllers();
+app.MapGet("/", () => "API is running");
 
 app.Run();
 

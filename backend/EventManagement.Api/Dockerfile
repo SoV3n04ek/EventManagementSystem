@@ -1,33 +1,37 @@
-# Build stage
+# --- Build Stage ---
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy solution and project files
-COPY *.sln ./
-COPY EventManagement.Api/*.csproj ./EventManagement.Api/
-COPY EventManagement.Application/*.csproj ./EventManagement.Application/
-COPY EventManagement.Domain/*.csproj ./EventManagement.Domain/
-COPY EventManagement.Infrastructure/*.csproj ./EventManagement.Infrastructure/
-COPY EventManagement.IntegrationTests/*.csproj ./EventManagement.IntegrationTests/
+# Copy projects individually to cache 'dotnet restore' layer
+COPY ["EventManagement.Api/EventManagement.Api.csproj", "EventManagement.Api/"]
+COPY ["EventManagement.Application/EventManagement.Application.csproj", "EventManagement.Application/"]
+COPY ["EventManagement.Domain/EventManagement.Domain.csproj", "EventManagement.Domain/"]
+COPY ["EventManagement.Infrastructure/EventManagement.Infrastructure.csproj", "EventManagement.Infrastructure/"]
 
-# Clear any local NuGet config and restore
-RUN dotnet nuget locals all --clear
-RUN dotnet restore --verbosity minimal
+RUN dotnet restore "EventManagement.Api/EventManagement.Api.csproj"
 
-# Copy everything else
+# Copy the rest of the source
 COPY . .
+WORKDIR "/src/EventManagement.Api"
 
-# Build and publish
-WORKDIR /src/EventManagement.Api
-RUN dotnet publish -c Release -o /app/publish
+# Build and Publish
+RUN dotnet publish "EventManagement.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+# --- Runtime Stage ---
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS final
 WORKDIR /app
+
+# 1. Create the directory for keys
+# 2. Change ownership to the 'app' user (UID 1654 in .NET images)
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
+    chown -R 1654:1654 /home/app/.aspnet/
+
+# Now switch to the non-root user (for security reasons)
+USER $APP_UID
+
 COPY --from=build /app/publish .
 
-EXPOSE 5000
-ENV ASPNETCORE_URLS=http://+:5000
-ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
 
 ENTRYPOINT ["dotnet", "EventManagement.Api.dll"]
