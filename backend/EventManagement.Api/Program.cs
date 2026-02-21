@@ -23,7 +23,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<EventManagementDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));\
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Minimal services
 builder.Services.AddControllers();
