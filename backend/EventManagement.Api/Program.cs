@@ -22,54 +22,47 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<EventManagementDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Minimal services
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddCors();
 
+builder.Services.AddDbContext<EventManagementDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 var app = builder.Build();
 
-// Force the Port (Railway Fix)
+// Bind the port IMMEDIATELY
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-// Run migrations but catch errors so they don't kill the server
-using (var scope = app.Services.CreateScope())
+app.MapGet("/", () => "API is running");
+app.MapHealthChecks("/health");
+
+// DEFENSIVE MIGRATION (Non-blocking)
+// We use Task.Run so it doesn't hang the main thread
+_ = Task.Run(async () => 
 {
+    using var scope = app.Services.CreateScope();
     try 
     {
         var context = scope.ServiceProvider.GetRequiredService<EventManagementDbContext>();
-        // Migrate if not in testing
-        if (!app.Environment.IsEnvironment("Testing"))
-        {
-            await context.Database.MigrateAsync();
-            Console.WriteLine("Migrations completed successfully.");
-        }
+        Console.WriteLine("Starting Database Migration...");
+        await context.Database.MigrateAsync();
+        Console.WriteLine("Database Migration Finished.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Migration failed: {ex.Message}");
+        Console.WriteLine($"CRITICAL: Migration failed: {ex.Message}");
     }
-}
-
-// The absolute first thing the app should do
-app.MapGet("/", () => "API is running - Debug Mode");
-app.MapGet("/health", () => new { status = "Healthy", time = DateTime.UtcNow });
-
-// Essential Middleware
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
+// REST OF PIPELINE
+app.UseForwardedHeaders();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
-// Run immed    iately
 app.Run();
 
 // var builder = WebApplication.CreateBuilder(args);
