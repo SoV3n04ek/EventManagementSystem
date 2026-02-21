@@ -201,9 +201,30 @@ builder.Services.AddDataProtection()
 
 var app = builder.Build();
 
-app.UseForwardedHeaders();
-
 app.MapGet("/", () => "API is running");
+// Health Check endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            environment = app.Environment.EnvironmentName,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                duration = e.Value.Duration.TotalMilliseconds
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
+app.UseForwardedHeaders();
 
 // Applying migrations (skip in Testing environment — no real DB)
 if (!app.Environment.IsEnvironment("Testing"))
@@ -322,28 +343,6 @@ app.Use(async (context, next) =>
     });
 
     await next(context);
-});
-
-// Health Check endpoints
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var result = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            status = report.Status.ToString(),
-            timestamp = DateTime.UtcNow,
-            environment = app.Environment.EnvironmentName,
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                duration = e.Value.Duration.TotalMilliseconds
-            })
-        });
-        await context.Response.WriteAsync(result);
-    }
 });
 
 app.MapControllers();
