@@ -197,32 +197,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 // for Antiforgery Keys in docker container
 builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(@"/home/app/.aspnet/DataProtection-Keys"));
+    .PersistKeysToFileSystem(new DirectoryInfo("/tmp/dp-keys")); // Linux always allows writing to /tmp
 
 var app = builder.Build();
 
-app.MapGet("/", () => "API is running");
-// Health Check endpoints
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var result = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            status = report.Status.ToString(),
-            timestamp = DateTime.UtcNow,
-            environment = app.Environment.EnvironmentName,
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                duration = e.Value.Duration.TotalMilliseconds
-            })
-        });
-        await context.Response.WriteAsync(result);
-    }
-});
 
 app.UseForwardedHeaders();
 
@@ -282,7 +260,10 @@ if (!app.Environment.IsEnvironment("Testing"))
 //   - HttpOnly cookie  → attacker can't READ the JWT via JS
 //   - CSP connect-src  → attacker can't EXFILTRATE the XSRF-TOKEN to external domains
 //   - XSRF validation  → attacker can't FORGE requests without the bound token
-app.Use(async (context, next) =>
+
+// Commented Content Secuirity Block
+
+/*app.Use(async (context, next) =>
 {
     // ── Content Security Policy ──
     // Angular requires 'unsafe-inline' for component-scoped styles (injected <style> tags).
@@ -297,7 +278,7 @@ app.Use(async (context, next) =>
         "img-src 'self' data: https:",                // Local + data URIs + secure external
         app.Environment.IsDevelopment()
             ? "connect-src 'self' http://localhost:5000 http://localhost:4200 ws://localhost:4200"
-            : "connect-src 'self' ",                   // Only same-origin in production
+            : "connect-src 'self' frontend-eventmanagement-production.up.railway.app",                   // Only same-origin in production
         "frame-ancestors 'none'",                     // Clickjacking prevention
         "base-uri 'self'",                            // Prevent <base> tag hijacking
         "form-action 'self'"                          // Prevent form submission to external domains
@@ -312,7 +293,7 @@ app.Use(async (context, next) =>
 
     await next();
 });
-
+*/
 app.UseCors();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
@@ -326,26 +307,50 @@ app.UseAuthorization();
 // GetAndStoreTokens captures the authenticated ClaimsPrincipal.
 // If the user is anonymous, tokens bind to the anonymous identity.
 // After login, AuthController regenerates tokens bound to the new user.
-app.Use(async (context, next) =>
+/*app.Use(async (context, next) =>
 {
-    var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
-    var tokenSet = antiforgery.GetAndStoreTokens(context);
-
-    // Expose the RequestToken to Angular via a readable (non-HttpOnly) cookie
-    context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions
-    {
-        HttpOnly = false,        // Angular must read this via document.cookie
-        Secure = !app.Environment.IsDevelopment(), // TRUE IN PRODUCTION | Allow over HTTP in development
-        SameSite = SameSiteMode.Strict,
-        Path = "/",
-        // The cookie is only sent over https in prod
-        IsEssential = true
-    });
+    try {
+        var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
+        var tokenSet = antiforgery.GetAndStoreTokens(context);
+        context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions {
+            HttpOnly = false,
+            Secure = true, // Force secure in Railway
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+            IsEssential = true
+        });
+    } catch (Exception ex) {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Antiforgery token generation failed.");
+    }
 
     await next(context);
-});
+});*/
 
+// Register Routes
 app.MapControllers();
+app.MapGet("/", () => "API is running");
+// Health Check endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            environment = app.Environment.EnvironmentName,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                duration = e.Value.Duration.TotalMilliseconds
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
 
 app.Run();
 
