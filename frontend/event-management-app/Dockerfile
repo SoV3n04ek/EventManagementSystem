@@ -2,12 +2,12 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Reach into the specific frontend folder for the lockfile
+COPY frontend/event-management-app/package*.json ./
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy the rest of the frontend source
+COPY frontend/event-management-app/ .
 
 # Build for production
 RUN npm run build -- --configuration production
@@ -15,10 +15,8 @@ RUN npm run build -- --configuration production
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy built app
+# The rest remains the same...
 COPY --from=build /app/dist/event-management-app/browser /usr/share/nginx/html
-
-# Copy nginx config
 COPY frontend/event-management-app/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
