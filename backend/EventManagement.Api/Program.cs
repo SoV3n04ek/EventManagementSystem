@@ -20,26 +20,187 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 
+using EventManagement.Api.Middleware;
+using EventManagement.Api.Filters;
+using EventManagement.Application.Interfaces;
+using EventManagement.Application.Services;
+using EventManagement.Domain.Interfaces.Security;
+using EventManagement.Infrastructure;
+using EventManagement.Infrastructure.Data;
+using EventManagement.Infrastructure.Interfaces;
+using EventManagement.Infrastructure.Repository;
+using EventManagement.Infrastructure.Security;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
-builder.Services.AddCors();
+// Service Configuration
+
+builder.Services.AddControllers(options =>
+{
+    // Global XSRF validation on all state-changing requests
+    options.Filters.Add<ValidateAntiforgeryFilter>();
+});
+
+// Health Checks (Includes PostgreSQL check)
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "postgresql",
+        timeout: TimeSpan.FromSeconds(15),
+        tags: new[] { "db", "sql", "postgresql" }
+    );
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddFluentValidationClientsideAdapters();
+builder.Services.AddValidatorsFromAssemblyContaining<IUserService>();
 
 builder.Services.AddDbContext<EventManagementDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("CRITICAL: Connection string 'DefaultConnection' is null or empty! Check Environment Variables.");
+    }
+    options.UseNpgsql(connectionString);
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Event Management API",
+        Version = "v1",
+        Description = "Event Management System API"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"    
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+             new OpenApiSecurityScheme
+             {
+                 Reference = new OpenApiReference
+                 {
+                     Type = ReferenceType.SecurityScheme,
+                     Id = "Bearer"
+                 }
+             },
+             Array.Empty<string>()
+        }
+    });
+});
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrEmpty(context.Token)
+                    && context.Request.Cookies.TryGetValue("auth_token", out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.Name = ".AspNetCore.Antiforgery";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Always secure in production
+    options.Cookie.IsEssential = true;
+    options.HeaderName = "X-XSRF-TOKEN";
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        string[] allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>();
+        if (allowedOrigins == null || allowedOrigins.Length == 0)
+        {
+            policy.WithOrigins("https://localhost:4200").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+        }
+    });
+});
+
+// Dependency Injection
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IParticipantRepository, ParticipantRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+builder.Services.AddAuthorization();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// DataProtection Keys in /tmp to ensure write permissions on Railway
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/tmp/dp-keys"));
 
 var app = builder.Build();
 
-// Bind the port IMMEDIATELY
+// Pipeline Initialization
+
+// Bind the port IMMEDIATELY for Railway proxy
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-app.MapGet("/", () => "API is running");
-app.MapHealthChecks("/health");
+app.UseForwardedHeaders();
 
-// DEFENSIVE MIGRATION (Non-blocking)
-// We use Task.Run so it doesn't hang the main thread
+// Defensive Migration (Non-blocking to avoid 502 startup timeouts)
 _ = Task.Run(async () => 
 {
     using var scope = app.Services.CreateScope();
@@ -49,22 +210,90 @@ _ = Task.Run(async () =>
         Console.WriteLine("Starting Database Migration...");
         await context.Database.MigrateAsync();
         Console.WriteLine("Database Migration Finished.");
+
+        if (app.Environment.IsDevelopment())
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
+            await seeder.SeedAsync();
+            Console.WriteLine("Database Seeding Finished.");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"CRITICAL: Migration failed: {ex.Message}");
+        Console.WriteLine($"CRITICAL: Migration/Seeding failed: {ex.Message}");
     }
 });
 
-// REST OF PIPELINE
-app.UseForwardedHeaders();
-app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseCors();
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
+// CSP and Security Headers
+app.Use(async (context, next) =>
+{
+    var csp = string.Join("; ",
+        "default-src 'self'",
+        app.Environment.IsDevelopment() ? "script-src 'self' 'unsafe-eval'" : "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        app.Environment.IsDevelopment() 
+            ? "connect-src 'self' http://localhost:5000 http://localhost:4200 ws://localhost:4200"
+            : "connect-src 'self' " // Nginx handles proxy, so 'self' is enough
+    );
+
+    context.Response.Headers["Content-Security-Policy"] = csp;
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+// XSRF Cookie Middleware
+app.Use(async (context, next) =>
+{
+    try {
+        var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
+        var tokenSet = antiforgery.GetAndStoreTokens(context);
+        context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions {
+            HttpOnly = false, // Angular must read this
+            Secure = true, 
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+            IsEssential = true
+        });
+    } catch (Exception ex) {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Antiforgery token generation failed.");
+    }
+    await next(context);
+});
+
+// Endpoints
+
+app.MapGet("/", () => "API is running");
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            environment = app.Environment.EnvironmentName,
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
 app.MapControllers();
 
 app.Run();
 
+public partial class Program { }
 // var builder = WebApplication.CreateBuilder(args);
 
 // builder.Services.AddControllers(options =>
