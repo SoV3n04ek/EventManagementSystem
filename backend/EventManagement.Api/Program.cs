@@ -44,6 +44,17 @@ using Microsoft.AspNetCore.DataProtection;
 var builder = WebApplication.CreateBuilder(args);
 
 // Service Configuration
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    // Process both the IP (For) and the Protocol (Proto - http vs https)
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    
+    // SECURITY WARNING: In Railway/Cloud, we clear these lists because 
+    // the proxy IP is dynamic. This allows the middleware to actually 
+    // process the headers sent by Nginx.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddControllers(options =>
 {
@@ -193,12 +204,12 @@ builder.Services.AddDataProtection()
 var app = builder.Build();
 
 // Pipeline Initialization
+app.UseForwardedHeaders();
 
 // Bind the port IMMEDIATELY for Railway proxy
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-app.UseForwardedHeaders();
 
 // Defensive Migration (Non-blocking to avoid 502 startup timeouts)
 _ = Task.Run(async () => 
