@@ -1,7 +1,5 @@
-﻿namespace EventManagement.Application.Exceptions
+﻿namespace EventManagement.Application.Exceptions;
+
+public class BadRequestException(string message) : Exception(message)
 {
-    public class BadRequestException : Exception
-    {
-        public BadRequestException(string message) : base(message) { }
-    }
 }

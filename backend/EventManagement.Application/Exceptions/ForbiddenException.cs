@@ -1,7 +1,5 @@
-﻿namespace EventManagement.Application.Exceptions
+﻿namespace EventManagement.Application.Exceptions;
+
+public class ForbiddenException(string message) : Exception(message)
 {
-    public class ForbiddenException : Exception
-    {
-        public ForbiddenException(string message) : base(message) { }
-    }
 }

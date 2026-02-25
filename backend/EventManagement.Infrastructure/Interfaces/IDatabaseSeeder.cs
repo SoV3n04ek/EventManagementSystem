@@ -1,7 +1,6 @@
-﻿namespace EventManagement.Application.Interfaces
+﻿namespace EventManagement.Application.Interfaces;
+
+public interface IDatabaseSeeder
 {
-    public interface IDatabaseSeeder
-    {
-        Task SeedAsync();
-    }
+    Task SeedAsync();
 }

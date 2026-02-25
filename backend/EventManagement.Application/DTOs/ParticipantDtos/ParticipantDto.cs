@@ -1,8 +1,7 @@
-﻿namespace EventManagement.Application.DTOs.ParticipantDtos
+﻿namespace EventManagement.Application.DTOs.ParticipantDtos;
+
+public class ParticipantDto
 {
-    public class ParticipantDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-    }
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
 }

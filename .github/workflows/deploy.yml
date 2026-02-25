@@ -1,0 +1,44 @@
+name: CD to Azure Pipeline
+
+on:
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      reason:
+        description: 'Reason for running the workflow'
+        required: true
+        default: 'Manual trigger'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push ${{ matrix.component }}
+        run: |
+          # Logic to handle different Dockerfile locations
+          if [ "${{ matrix.component }}" == "backend" ]; then
+            DOCKERFILE="backend/EventManagement.Api/Dockerfile"
+            CONTEXT="." # Backend needs the whole root for sln context
+          else
+            DOCKERFILE="frontend/event-management-app/Dockerfile"
+            CONTEXT="frontend/event-management-app"
+          fi
+          
+          TAG_SHA="${{ secrets.ACR_LOGIN_SERVER }}/event-${{ matrix.component }}:${{ github.sha }}"
+          TAG_LATEST="${{ secrets.ACR_LOGIN_SERVER }}/event-${{ matrix.component }}:latest"
+          
+          docker build -t $TAG_SHA -t $TAG_LATEST -f $DOCKERFILE $CONTEXT
+          docker push $TAG_SHA
+          docker push $TAG_LATEST

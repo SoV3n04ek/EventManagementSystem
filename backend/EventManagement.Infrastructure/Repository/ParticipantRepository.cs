@@ -2,53 +2,29 @@
 using EventManagement.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace EventManagement.Infrastructure.Repository
+namespace EventManagement.Infrastructure.Repository;
+
+public class ParticipantRepository(EventManagementDbContext context) : IParticipantRepository
 {
-    public class ParticipantRepository : IParticipantRepository
-    {
-        private readonly EventManagementDbContext _context;
+    readonly EventManagementDbContext context = context;
 
-        public ParticipantRepository(EventManagementDbContext context)
-        {
-            _context = context;
-        }
+    public async Task<Participant?> GetByEventAndUserAsync(int eventId, int userId) => await context.Participants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.EventId == eventId && p.UserId == userId);
 
-        public async Task<Participant?> GetByEventAndUserAsync(int eventId, int userId)
-        {
-            return await _context.Participants
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.EventId == eventId && p.UserId == userId);
-        }
+    public async Task<IEnumerable<Participant>> GetByUserIdAsync(int userId) => await context.Participants
+            .AsNoTracking()
+            .Include(p => p.Event)
+            .Where(p => p.UserId == userId)
+            .ToListAsync();
 
-        public async Task<IEnumerable<Participant>> GetByUserIdAsync(int userId)
-        {
-            return await _context.Participants
-                .AsNoTracking()
-                .Include(p => p.Event)
-                .Where(p => p.UserId == userId)
-                .ToListAsync();
-        }
+    public async Task AddAsync(Participant participant) => _ = await context.Participants.AddAsync(participant);
 
-        public async Task AddAsync(Participant participant)
-        {
-            await _context.Participants.AddAsync(participant);
-        }
+    public void Remove(Participant participant) => _ = context.Participants.Remove(participant);
 
-        public void Remove(Participant participant)
-        {
-            _context.Participants.Remove(participant);
-        }
+    public async Task SaveChangesAsync() => _ = await context.SaveChangesAsync();
 
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<int> GetCountByEventIdAsync(int eventId)
-        {
-            return await _context.Participants
-                .Where(p => p.EventId == eventId)
-                .CountAsync();
-        }
-    }
+    public async Task<int> GetCountByEventIdAsync(int eventId) => await context.Participants
+            .Where(p => p.EventId == eventId)
+            .CountAsync();
 }

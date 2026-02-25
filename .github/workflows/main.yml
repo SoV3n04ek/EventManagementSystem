@@ -34,13 +34,13 @@ jobs:
         with:
           dotnet-version: '9.0.x'
           cache: true
-          cache-dependency-path: backend/EventManagement.Api/EventManagement.Api.csproj
+          cache-dependency-path: 'backend/**/*.csproj'
       
       - name: Restore dependencies # Restores the dependencies
-        run: dotnet restore backend/EventManagement.Api/EventManagement.Api.csproj
+        run: dotnet restore backend/EventManagementSystem.sln
 
       - name: Build # Builds the project
-        run: dotnet build backend/EventManagement.Api/EventManagement.Api.csproj --no-restore
+        run: dotnet build backend/EventManagement.Api/EventManagement.Api.csproj -c Release --no-restore
       
       - name: Test # Runs the unit tests
         run: dotnet test backend/EventManagement.UnitTests/EventManagement.UnitTests.csproj --configuration Release --no-build --verbosity normal

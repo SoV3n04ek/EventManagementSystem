@@ -1,6 +1,4 @@
-using System.Net;
-using System.Net.Http.Json;
-using EventManagement.Application.DTOs.EventDtos;
+﻿using System.Net;
 using Moq;
 
 namespace EventManagement.IntegrationTests;
@@ -12,12 +10,10 @@ namespace EventManagement.IntegrationTests;
 ///   2. Full login → fresh XSRF token → POST succeeds (200)
 ///   3. Stale anonymous XSRF token fails after login (identity mismatch)
 /// </summary>
-public class XsrfProtectionTests : TestBase
+public class XsrfProtectionTests(CustomWebApplicationFactory factory) : TestBase(factory)
 {
-    public XsrfProtectionTests(CustomWebApplicationFactory factory) : base(factory) { }
-
     [Fact]
-    public async Task Post_Without_Xsrf_Header_Returns_400()
+    public async Task PostWithoutXsrfHeaderReturns400()
     {
         // Arrange — Login to get authenticated, but don't send XSRF header
         Factory.SetupLoginSuccess();
@@ -37,18 +33,18 @@ public class XsrfProtectionTests : TestBase
         // Assert — Should be rejected by the XSRF filter
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        var body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync();
         Assert.Contains("XSRF", body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Post_With_Valid_Xsrf_Header_Succeeds()
+    public async Task PostWithValidXsrfHeaderSucceeds()
     {
         // Arrange
         Factory.SetupLoginSuccess();
 
         // Mock the event service to accept the join
-        Factory.MockEventService
+        _ = Factory.MockEventService
             .Setup(s => s.JoinEventAsync(It.IsAny<int>(), It.IsAny<int>()))
             .Returns(Task.CompletedTask);
 
@@ -63,7 +59,7 @@ public class XsrfProtectionTests : TestBase
         // causing a potential mismatch. Do a GET to let the middleware regenerate
         // a consistent token pair (XSRF-TOKEN + .AspNetCore.Antiforgery cookie).
         var refreshResponse = await client.GetAsync("/health");
-        var xsrfToken = ExtractXsrfToken(refreshResponse);
+        string? xsrfToken = ExtractXsrfToken(refreshResponse);
         Assert.NotNull(xsrfToken);
 
         // Act — POST with the aligned XSRF token
@@ -73,18 +69,18 @@ public class XsrfProtectionTests : TestBase
         var response = await client.SendAsync(request);
 
         // Assert — Should succeed (XSRF token matches authenticated identity)
-        var debug = await GetResponseBodyForDebug(response);
+        string debug = await GetResponseBodyForDebug(response);
         Assert.True(response.IsSuccessStatusCode,
             $"Authenticated POST with XSRF failed: {debug}");
     }
 
     [Fact]
-    public async Task Stale_Anonymous_Xsrf_Token_Fails_After_Login()
+    public async Task StaleAnonymousXsrfTokenFailsAfterLogin()
     {
         // Arrange
         Factory.SetupLoginSuccess();
 
-        Factory.MockEventService
+        _ = Factory.MockEventService
             .Setup(s => s.JoinEventAsync(It.IsAny<int>(), It.IsAny<int>()))
             .Returns(Task.CompletedTask);
 
@@ -92,7 +88,7 @@ public class XsrfProtectionTests : TestBase
 
         // Step 1: Get initial (anonymous) XSRF token
         var bootstrapResponse = await client.GetAsync("/health");
-        var anonymousXsrf = ExtractXsrfToken(bootstrapResponse);
+        string? anonymousXsrf = ExtractXsrfToken(bootstrapResponse);
         Assert.NotNull(anonymousXsrf);
 
         // Step 2: Login — this changes the identity and generates new XSRF tokens
@@ -101,7 +97,7 @@ public class XsrfProtectionTests : TestBase
             $"Login failed: {await GetResponseBodyForDebug(loginResponse)}");
 
         // Verify we got a NEW token (different from anonymous)
-        var authenticatedXsrf = ExtractXsrfToken(loginResponse);
+        string? authenticatedXsrf = ExtractXsrfToken(loginResponse);
         Assert.NotNull(authenticatedXsrf);
 
         // Step 3: Try to use the OLD anonymous XSRF token
@@ -114,7 +110,7 @@ public class XsrfProtectionTests : TestBase
         // the now-authenticated identity
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        var body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync();
         Assert.Contains("XSRF", body, StringComparison.OrdinalIgnoreCase);
     }
 }
