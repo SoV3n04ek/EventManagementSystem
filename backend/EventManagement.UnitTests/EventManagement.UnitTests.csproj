@@ -24,4 +24,11 @@
     <ProjectReference Include="..\EventManagement.Application\EventManagement.Application.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>preview-All</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
 </Project>

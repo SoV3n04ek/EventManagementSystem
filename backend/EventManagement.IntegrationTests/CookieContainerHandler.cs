@@ -1,5 +1,4 @@
-using System.Net;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace EventManagement.IntegrationTests;
 
@@ -12,21 +11,19 @@ namespace EventManagement.IntegrationTests;
 /// without enforcing the Secure constraint, since the TestServer
 /// is a trusted in-process transport (no real network involved).
 /// </summary>
-public class CookieContainerHandler : DelegatingHandler
+public partial class CookieContainerHandler(HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
 {
     // Simple cookie store: name → value
-    private readonly Dictionary<string, string> _cookies = new();
-
-    public CookieContainerHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
+    readonly Dictionary<string, string> cookies = [];
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         // Attach stored cookies to the outgoing request
-        if (_cookies.Count > 0)
+        if (cookies.Count > 0)
         {
-            var cookieHeader = string.Join("; ", _cookies.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-            request.Headers.Remove("Cookie");
+            string cookieHeader = string.Join("; ", cookies.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            _ = request.Headers.Remove("Cookie");
             request.Headers.Add("Cookie", cookieHeader);
         }
 
@@ -36,7 +33,7 @@ public class CookieContainerHandler : DelegatingHandler
         // Extract Set-Cookie headers and store them
         if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
         {
-            foreach (var header in setCookies)
+            foreach (string header in setCookies)
             {
                 ParseAndStoreCookie(header);
             }
@@ -45,41 +42,42 @@ public class CookieContainerHandler : DelegatingHandler
         return response;
     }
 
-    private void ParseAndStoreCookie(string setCookieHeader)
+    void ParseAndStoreCookie(string setCookieHeader)
     {
         // Set-Cookie format: name=value; path=/; httponly; secure; samesite=strict; expires=...
         // We extract just the name=value part (everything before the first ';')
-        var parts = setCookieHeader.Split(';', 2);
-        var nameValue = parts[0].Trim();
+        string[] parts = setCookieHeader.Split(';', 2);
+        string nameValue = parts[0].Trim();
 
-        var equalsIndex = nameValue.IndexOf('=');
+        int equalsIndex = nameValue.IndexOf('=');
         if (equalsIndex <= 0) return;
 
-        var name = nameValue[..equalsIndex];
-        var value = nameValue[(equalsIndex + 1)..];
+        string name = nameValue[..equalsIndex];
+        string value = nameValue[(equalsIndex + 1)..];
 
         // Check if the cookie is being expired/deleted
         // (empty value or expires in the past)
-        var isExpired = setCookieHeader.Contains("expires=", StringComparison.OrdinalIgnoreCase)
+        bool isExpired = setCookieHeader.Contains("expires=", StringComparison.OrdinalIgnoreCase)
             && TryParseExpiry(setCookieHeader, out var expiryDate)
             && expiryDate < DateTimeOffset.UtcNow;
 
         if (isExpired || string.IsNullOrEmpty(value))
         {
-            _cookies.Remove(name);
+            _ = cookies.Remove(name);
         }
         else
         {
-            _cookies[name] = value;
+            cookies[name] = value;
         }
     }
 
-    private static bool TryParseExpiry(string header, out DateTimeOffset expiry)
+    static bool TryParseExpiry(string header, out DateTimeOffset expiry)
     {
         expiry = default;
-        var match = Regex.Match(header, @"expires=([^;]+)", RegexOptions.IgnoreCase);
-        if (!match.Success) return false;
-
-        return DateTimeOffset.TryParse(match.Groups[1].Value, out expiry);
+        var match = MyRegex().Match(header);
+        return match.Success && DateTimeOffset.TryParse(match.Groups[1].Value, out expiry);
     }
+
+    [GeneratedRegex(@"expires=([^;]+)", RegexOptions.IgnoreCase, "")]
+    private static partial Regex MyRegex();
 }

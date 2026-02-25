@@ -1,5 +1,6 @@
-using EventManagement.Api.Middleware;
+﻿using System.Text;
 using EventManagement.Api.Filters;
+using EventManagement.Api.Middleware;
 using EventManagement.Application.Interfaces;
 using EventManagement.Application.Services;
 using EventManagement.Domain.Interfaces.Security;
@@ -12,43 +13,21 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
-
-using EventManagement.Api.Middleware;
-using EventManagement.Api.Filters;
-using EventManagement.Application.Interfaces;
-using EventManagement.Application.Services;
-using EventManagement.Domain.Interfaces.Security;
-using EventManagement.Infrastructure;
-using EventManagement.Infrastructure.Data;
-using EventManagement.Infrastructure.Interfaces;
-using EventManagement.Infrastructure.Repository;
-using EventManagement.Infrastructure.Security;
-using FluentValidation;
-using FluentValidation.AspNetCore;
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 // Service Configuration
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     // Process both the IP (For) and the Protocol (Proto - http vs https)
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    
+
     // SECURITY WARNING: In Railway/Cloud, we clear these lists because 
     // the proxy IP is dynamic. This allows the middleware to actually 
     // process the headers sent by Nginx.
@@ -57,19 +36,17 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 builder.Services.AddControllers(options =>
-{
     // Global XSRF validation on all state-changing requests
-    options.Filters.Add<ValidateAntiforgeryFilter>();
-});
+    _ = options.Filters.Add<ValidateAntiforgeryFilter>());
 
 // Health Checks (Includes PostgreSQL check)
+string[] healthTags = ["db", "sql", "postgresql"];
 builder.Services.AddHealthChecks()
     .AddNpgSql(
         builder.Configuration.GetConnectionString("DefaultConnection")!,
         name: "postgresql",
         timeout: TimeSpan.FromSeconds(15),
-        tags: new[] { "db", "sql", "postgresql" }
-    );
+        tags: healthTags);
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
@@ -77,12 +54,12 @@ builder.Services.AddValidatorsFromAssemblyContaining<IUserService>();
 
 builder.Services.AddDbContext<EventManagementDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (string.IsNullOrWhiteSpace(connectionString))
     {
         throw new InvalidOperationException("CRITICAL: Connection string 'DefaultConnection' is null or empty! Check Environment Variables.");
     }
-    options.UseNpgsql(connectionString);
+    _ = options.UseNpgsql(connectionString);
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -102,7 +79,7 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT"    
+        BearerFormat = "JWT"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -141,7 +118,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = context =>
             {
                 if (string.IsNullOrEmpty(context.Token)
-                    && context.Request.Cookies.TryGetValue("auth_token", out var cookieToken))
+                    && context.Request.Cookies.TryGetValue("auth_token", out string? cookieToken))
                 {
                     context.Token = cookieToken;
                 }
@@ -160,21 +137,13 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-XSRF-TOKEN";
 });
 
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     {
-        string[] allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>();
-        if (allowedOrigins == null || allowedOrigins.Length == 0)
-        {
-            policy.WithOrigins("https://localhost:4200").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
-        }
-        else
-        {
-            policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
-        }
-    });
-});
+        string[] allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>() ?? [];
+        _ = allowedOrigins.Length == 0
+            ? policy.WithOrigins("https://localhost:4200").AllowAnyMethod().AllowAnyHeader().AllowCredentials()
+            : policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    }));
 
 // Dependency Injection
 builder.Services.AddHttpContextAccessor();
@@ -207,15 +176,15 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 
 // Bind the port IMMEDIATELY for Railway proxy
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+string port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
 
 // Defensive Migration (Non-blocking to avoid 502 startup timeouts)
-_ = Task.Run(async () => 
+_ = Task.Run(async () =>
 {
     using var scope = app.Services.CreateScope();
-    try 
+    try
     {
         var context = scope.ServiceProvider.GetRequiredService<EventManagementDbContext>();
         Console.WriteLine("Starting Database Migration...");
@@ -241,19 +210,19 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 // CSP and Security Headers
 app.Use(async (context, next) =>
 {
-    var csp = string.Join("; ",
+    string csp = string.Join("; ",
         "default-src 'self'",
         app.Environment.IsDevelopment() ? "script-src 'self' 'unsafe-eval'" : "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https:",
-        app.Environment.IsDevelopment() 
+        app.Environment.IsDevelopment()
             ? "connect-src 'self' http://localhost:5000 http://localhost:4200 ws://localhost:4200"
             : "connect-src 'self' " // Nginx handles proxy, so 'self' is enough
     );
 
-    context.Response.Headers["Content-Security-Policy"] = csp;
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers.ContentSecurityPolicy = csp;
+    context.Response.Headers.XContentTypeOptions = "nosniff";
+    context.Response.Headers.XFrameOptions = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
     await next();
@@ -265,17 +234,21 @@ app.UseAuthorization();
 // XSRF Cookie Middleware
 app.Use(async (context, next) =>
 {
-    try {
+    try
+    {
         var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
         var tokenSet = antiforgery.GetAndStoreTokens(context);
-        context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions {
+        context.Response.Cookies.Append("XSRF-TOKEN", tokenSet.RequestToken!, new CookieOptions
+        {
             HttpOnly = false, // Angular must read this
-            Secure = true, 
+            Secure = true,
             SameSite = SameSiteMode.Strict,
             Path = "/",
             IsEssential = true
         });
-    } catch (Exception ex) {
+    }
+    catch (Exception ex)
+    {
         var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Antiforgery token generation failed.");
     }
@@ -290,7 +263,8 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     ResponseWriter = async (context, report) =>
     {
         context.Response.ContentType = "application/json";
-        var result = System.Text.Json.JsonSerializer.Serialize(new {
+        string result = System.Text.Json.JsonSerializer.Serialize(new
+        {
             status = report.Status.ToString(),
             timestamp = DateTime.UtcNow,
             environment = app.Environment.EnvironmentName,
@@ -305,6 +279,7 @@ app.MapControllers();
 app.Run();
 
 public partial class Program { }
+
 // var builder = WebApplication.CreateBuilder(args);
 
 // builder.Services.AddControllers(options =>
@@ -473,7 +448,7 @@ public partial class Program { }
 //     // X-Forwarded-For: The original user's IP address.
 //     // X-Forwarded-Proto: Whether the user used HTTP or HTTPS.
 //     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-   
+
 //     // Security reset: By default, .NET only trusts local proxies (127.0.0.1).
 //     // In cloud environments (Azure/AWS), we don't always know the internal IP of the proxy.
 //     // Clearing these tells .NET to trust the headers coming from the cloud load balancer.

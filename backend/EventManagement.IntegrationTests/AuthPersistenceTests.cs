@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using EventManagement.Application.DTOs.UserDtos;
 using Moq;
 
@@ -11,12 +11,10 @@ namespace EventManagement.IntegrationTests;
 ///   2. Cookie-based auth grants access to protected endpoints
 ///   3. Logout properly expires all session cookies
 /// </summary>
-public class AuthPersistenceTests : TestBase
+public class AuthPersistenceTests(CustomWebApplicationFactory factory) : TestBase(factory)
 {
-    public AuthPersistenceTests(CustomWebApplicationFactory factory) : base(factory) { }
-
     [Fact]
-    public async Task Login_Sets_HttpOnly_Auth_Cookie_With_Correct_Flags()
+    public async Task LoginSetsHttpOnlyAuthCookieWithCorrectFlags()
     {
         // Arrange
         Factory.SetupLoginSuccess();
@@ -26,11 +24,11 @@ public class AuthPersistenceTests : TestBase
         var response = await LoginAsync(client);
 
         // Assert — Debug on failure
-        var debug = await GetResponseBodyForDebug(response);
+        string debug = await GetResponseBodyForDebug(response);
         Assert.True(response.IsSuccessStatusCode, $"Login failed: {debug}");
 
         // Verify the Set-Cookie header for auth_token
-        var authCookie = ExtractSetCookieHeader(response, "auth_token");
+        string? authCookie = ExtractSetCookieHeader(response, "auth_token");
         Assert.NotNull(authCookie);
 
         // Verify cookie flags
@@ -40,13 +38,13 @@ public class AuthPersistenceTests : TestBase
     }
 
     [Fact]
-    public async Task Authorized_Endpoint_Succeeds_With_Cookie()
+    public async Task AuthorizedEndpointSucceedsWithCookie()
     {
         // Arrange
         Factory.SetupLoginSuccess();
 
         // Setup the /auth/me mock
-        Factory.MockUserService
+        _ = Factory.MockUserService
             .Setup(s => s.GetUserByIdAsync(It.IsAny<int>()))
             .ReturnsAsync(new UserDetailDto
             {
@@ -68,13 +66,13 @@ public class AuthPersistenceTests : TestBase
         var meResponse = await client.GetAsync("/api/auth/me");
 
         // Assert
-        var debug = await GetResponseBodyForDebug(meResponse);
+        string debug = await GetResponseBodyForDebug(meResponse);
         Assert.True(meResponse.IsSuccessStatusCode,
             $"/auth/me failed after login: {debug}");
     }
 
     [Fact]
-    public async Task Logout_Expires_Auth_And_Xsrf_Cookies()
+    public async Task LogoutExpiresAuthAndXsrfCookies()
     {
         // Arrange
         Factory.SetupLoginSuccess();
@@ -86,7 +84,7 @@ public class AuthPersistenceTests : TestBase
             $"Login failed: {await GetResponseBodyForDebug(loginResponse)}");
 
         // Get XSRF token for the logout POST
-        var xsrfToken = ExtractXsrfToken(loginResponse);
+        string? xsrfToken = ExtractXsrfToken(loginResponse);
         Assert.NotNull(xsrfToken);
 
         // Act — Logout
@@ -95,12 +93,12 @@ public class AuthPersistenceTests : TestBase
         var logoutResponse = await client.SendAsync(logoutRequest);
 
         // Assert
-        var debug = await GetResponseBodyForDebug(logoutResponse);
+        string debug = await GetResponseBodyForDebug(logoutResponse);
         Assert.True(logoutResponse.IsSuccessStatusCode,
             $"Logout failed: {debug}");
 
         // Verify auth_token is expired (Set-Cookie with past date)
-        var authCookieHeader = ExtractSetCookieHeader(logoutResponse, "auth_token");
+        string? authCookieHeader = ExtractSetCookieHeader(logoutResponse, "auth_token");
         Assert.NotNull(authCookieHeader);
         Assert.Contains("expires=", authCookieHeader, StringComparison.OrdinalIgnoreCase);
 

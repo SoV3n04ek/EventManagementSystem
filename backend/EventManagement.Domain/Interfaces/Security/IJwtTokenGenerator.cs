@@ -1,10 +1,9 @@
 ﻿using EventManagement.Domain.Entities;
 
-namespace EventManagement.Domain.Interfaces.Security
+namespace EventManagement.Domain.Interfaces.Security;
+
+public interface IJwtTokenGenerator
 {
-    public interface IJwtTokenGenerator
-    {
-        string GenerateToken(User user);
-        int? ValidateToken(string token);
-    }
+    string GenerateToken(User user);
+    int? ValidateToken(string token);
 }

@@ -1,55 +1,48 @@
-﻿using EventManagement.Application.Exceptions;
-using System.Text.Json;
+﻿using System.Text.Json;
+using EventManagement.Application.Exceptions;
 
-namespace EventManagement.Api.Middleware
+namespace EventManagement.Api.Middleware;
+
+public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
 {
-    public class ErrorHandlingMiddleware
+    readonly RequestDelegate next = next;
+    readonly ILogger<ErrorHandlingMiddleware> logger = logger;
+
+    public async Task InvokeAsync(HttpContext context)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ErrorHandlingMiddleware> _logger;
-
-        public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
+        try
         {
-            _next = next;
-            _logger = logger;
+            await next(context);
         }
-
-        public async Task InvokeAsync(HttpContext context)
+        catch (Exception ex)
         {
-            try
-            {
-                await _next(context);
-            }
-            catch(Exception ex)
-            {
-                await HandleExceptionAsync(context, ex);
-            }
+            await HandleExceptionAsync(context, ex);
         }
+    }
 
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        var (statusCode, message) = exception switch
         {
-            var (statusCode, message) = exception switch
-            {
-                NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ConflictException => (StatusCodes.Status409Conflict, exception.Message),
-                ForbiddenException => (StatusCodes.Status403Forbidden,  exception.Message),
-                BadRequestException => (StatusCodes.Status400BadRequest, exception.Message),
-                _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
-            };
+            NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+            ConflictException => (StatusCodes.Status409Conflict, exception.Message),
+            ForbiddenException => (StatusCodes.Status403Forbidden, exception.Message),
+            BadRequestException => (StatusCodes.Status400BadRequest, exception.Message),
+            _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
+        };
 
-            _logger.LogError(exception, $"An error occurred: {message} ");
+        logger.LogError(exception, "An error occurred: {Message}", message);
 
-            context.Response.StatusCode = statusCode;
-            context.Response.ContentType = "application/json";
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
 
-            var response = new
-            {
-                error = message,
-                details = exception.Message,
-                statusCode = statusCode
-            };
+        var response = new
+        {
+            error = message,
+            details = exception.Message,
+            statusCode
+        };
 
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
-        }
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 }

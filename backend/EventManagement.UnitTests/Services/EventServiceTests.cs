@@ -7,129 +7,128 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace EventManagement.UnitTests.Services
+namespace EventManagement.UnitTests.Services;
+
+public class EventServiceTests
 {
-    public class EventServiceTests
+    readonly Mock<IEventRepository> eventRepositoryMock;
+    readonly Mock<IParticipantRepository> participantRepositoryMock;
+    readonly Mock<IUserRepository> userRepositoryMock;
+    readonly Mock<ILogger<EventService>> loggerMock;
+    readonly EventService service;
+    // Standard xUnit Setup
+    public EventServiceTests()
     {
-        private Mock<IEventRepository> _eventRepositoryMock;
-        private Mock<IParticipantRepository> _participantRepositoryMock;
-        private Mock<IUserRepository> _userRepositoryMock;
-        private Mock<ILogger<EventService>> _loggerMock;
-        private readonly EventService _service;
-        // Standard xUnit Setup
-        public EventServiceTests()
-        {
-            // Init the Mocks
-            _eventRepositoryMock = new Mock<IEventRepository>();
-            _participantRepositoryMock = new Mock<IParticipantRepository>();
-            _userRepositoryMock = new Mock<IUserRepository>();
-            _loggerMock = new Mock<ILogger<EventService>>();
+        // Init the Mocks
+        eventRepositoryMock = new Mock<IEventRepository>();
+        participantRepositoryMock = new Mock<IParticipantRepository>();
+        userRepositoryMock = new Mock<IUserRepository>();
+        loggerMock = new Mock<ILogger<EventService>>();
 
-            // Inject the .Object property of the mocks into real service
-            _service = new EventService(
-                _eventRepositoryMock.Object,
-                _participantRepositoryMock.Object,
-                _userRepositoryMock.Object,
-                _loggerMock.Object
-            );
-        }
+        // Inject the .Object property of the mocks into real service
+        service = new EventService(
+            eventRepositoryMock.Object,
+            participantRepositoryMock.Object,
+            userRepositoryMock.Object,
+            loggerMock.Object
+        );
+    }
 
-        [Fact]
-        public async Task JoinEventAsync_ShouldThrowBadRequest_WhenEventIsFull()
+    [Fact]
+    public async Task JoinEventAsyncShouldThrowBadRequestWhenEventIsFull()
+    {
+        // Arrange
+        int eventId = 1;
+        int userId = 99;
+        var myEvent = new Event
         {
-            // Arrange
-            int eventId = 1;
-            int userId = 99;
-            var myEvent = new Event
+            Id = eventId,
+            Capacity = 2,
+            EventDate = DateTime.Today.AddDays(1),
+            Location = "Location",
+            IsPublic = true,
+        };
+
+        // Set up repository to return the event
+        _ = eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId))
+            .ReturnsAsync(myEvent);
+
+        // Set up participant repo to say there are already 2 people
+        _ = participantRepositoryMock.Setup(r => r.GetCountByEventIdAsync(eventId))
+            .ReturnsAsync(2);
+
+        // Act
+        // Calling the service and checking for the exception
+        Func<Task> action = () => service.JoinEventAsync(eventId, userId);
+
+        // Assert
+        _ = await action.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("Event is full");
+    }
+
+    [Fact]
+    public async Task JoinEventAsyncShouldThrowConflictExceptionWhenUserAlreadyJoined()
+    {
+        // Arrange
+        int eventId = 1;
+        int userId = 99;
+        var myEvent = new Event
+        {
+            Id = eventId,
+            Capacity = 2,
+            EventDate = DateTime.Today.AddDays(1),
+            Location = "Location",
+            IsPublic = true,
+        };
+
+        // Set up repository to return the event
+        _ = eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId))
+            .ReturnsAsync(myEvent);
+
+        _ = participantRepositoryMock.Setup(r => r.GetByEventAndUserAsync(eventId, userId))
+            .ReturnsAsync(new Participant
             {
-                Id = eventId,
-                Capacity = 2,
-                EventDate = DateTime.Today.AddDays(1),
-                Location = "Location",
-                IsPublic = true,
-            };
+                EventId = eventId,
+                UserId = userId
+            });
 
-            // Set up repository to return the event
-            _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId))
-                .ReturnsAsync(myEvent);
+        Func<Task> action = () => service.JoinEventAsync(eventId, userId);
 
-            // Set up participant repo to say there are already 2 people
-            _participantRepositoryMock.Setup(r => r.GetCountByEventIdAsync(eventId))
-                .ReturnsAsync(2);
+        _ = await action.Should().ThrowAsync<ConflictException>()
+           .WithMessage("User already joined this event");
 
-            // Act
-            // Calling the service and checking for the exception
-            Func<Task> action = () => _service.JoinEventAsync(eventId, userId);
+        participantRepositoryMock.Verify(r =>
+            r.AddAsync(It.IsAny<Participant>()),
+            Times.Never());
+    }
 
-            // Assert
-            await action.Should().ThrowAsync<BadRequestException>()
-                .WithMessage("Event is full");
-        }
-
-        [Fact]
-        public async Task JoinEventAsync_ShouldThrowConflictException_WhenUserAlreadyJoined()
+    [Fact]
+    public async Task CreateEventAsyncEnsureTheDateTimeKindUtcNormalizationImplementedIsActuallyHappening()
+    {
+        // Arrange
+        int organizerId = 13;
+        var dto = new CreateEventDto
         {
-            // Arrange
-            int eventId = 1;
-            int userId = 99;
-            var myEvent = new Event
-            {
-                Id = eventId,
-                Capacity = 2,
-                EventDate = DateTime.Today.AddDays(1),
-                Location = "Location",
-                IsPublic = true,
-            };
+            Name = "Test Event",
+            EventDate = new DateTime(2026, 5, 20, 10, 0, 0), // Unspecified Kind
+            Location = "Remote"
+        };
 
-            // Set up repository to return the event
-            _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId))
-                .ReturnsAsync(myEvent);
+        // We mock the User check first so the service doesn't throw NotFound
+        _ = userRepositoryMock.Setup(r => r.GetByIdAsync(organizerId))
+            .ReturnsAsync(new User { Id = organizerId });
 
-            _participantRepositoryMock.Setup(r => r.GetByEventAndUserAsync(eventId, userId))
-                .ReturnsAsync(new Participant
-                {
-                    EventId = eventId,
-                    UserId = userId
-                });
+        // Act
+        int resultId = await service.CreateEventAsync(dto, organizerId);
 
-            Func<Task> action = () => _service.JoinEventAsync(eventId, userId);
+        // Assert
+        // This is where you prove the UTC fix is working
+        eventRepositoryMock.Verify(r => r.AddAsync(It.Is<Event>(e =>
+            e.Name == dto.Name &&
+            e.EventDate.Kind == DateTimeKind.Utc && // The Key check
+            e.OrganizerId == organizerId
+        )), Times.Once);
 
-            await action.Should().ThrowAsync<ConflictException>()
-               .WithMessage("User already joined this event");
-
-            _participantRepositoryMock.Verify(r =>
-                r.AddAsync(It.IsAny<Participant>()),
-                Times.Never());
-        }
-
-        [Fact]
-        public async Task CreateEventAsync_EnsureTheDateTimeKindUtc_NormalizationImplementedIsActuallyHappening()
-        {
-            // Arrange
-            var organizerId = 13;
-            var dto = new CreateEventDto
-            {
-                Name = "Test Event",
-                EventDate = new DateTime(2026, 5, 20, 10, 0, 0), // Unspecified Kind
-                Location = "Remote"
-            };
-
-            // We mock the User check first so the service doesn't throw NotFound
-            _userRepositoryMock.Setup(r => r.GetByIdAsync(organizerId))
-                .ReturnsAsync(new User { Id = organizerId });
-
-            // Act
-            var resultId = await _service.CreateEventAsync(dto, organizerId);
-
-            // Assert
-            // This is where you prove the UTC fix is working
-            _eventRepositoryMock.Verify(r => r.AddAsync(It.Is<Event>(e =>
-                e.Name == dto.Name &&
-                e.EventDate.Kind == DateTimeKind.Utc && // The Key check
-                e.OrganizerId == organizerId
-            )), Times.Once);
-
-            _eventRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
-        }
+        eventRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
 }

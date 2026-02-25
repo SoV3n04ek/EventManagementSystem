@@ -1,10 +1,9 @@
-﻿namespace EventManagement.Application.Exceptions
-{
-    public class NotFoundException : Exception
-    {
-        public NotFoundException(string message) : base(message) { }
+﻿namespace EventManagement.Application.Exceptions;
 
-        public NotFoundException(string name, object key)
-            : base($"Entity \"{name}\" ({key}) was not found.") { }
-    }
+public class NotFoundException : Exception
+{
+    public NotFoundException(string message) : base(message) { }
+
+    public NotFoundException(string name, object key)
+        : base($"Entity \"{name}\" ({key}) was not found.") { }
 }

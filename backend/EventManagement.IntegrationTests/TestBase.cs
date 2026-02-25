@@ -1,5 +1,4 @@
-using System.Net;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 
 namespace EventManagement.IntegrationTests;
@@ -18,14 +17,9 @@ namespace EventManagement.IntegrationTests;
 ///   then manually sets X-XSRF-TOKEN request header (mimicking Angular).
 /// ─────────────────────────────────────────────────
 /// </summary>
-public abstract class TestBase : IClassFixture<CustomWebApplicationFactory>
+public abstract partial class TestBase(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
-    protected readonly CustomWebApplicationFactory Factory;
-
-    protected TestBase(CustomWebApplicationFactory factory)
-    {
-        Factory = factory;
-    }
+    protected CustomWebApplicationFactory Factory { get; } = factory;
 
     /// <summary>
     /// Extract the XSRF-TOKEN value from Set-Cookie response headers.
@@ -36,10 +30,10 @@ public abstract class TestBase : IClassFixture<CustomWebApplicationFactory>
         if (!response.Headers.TryGetValues("Set-Cookie", out var cookies))
             return null;
 
-        foreach (var cookie in cookies)
+        foreach (string cookie in cookies)
         {
             // Match: XSRF-TOKEN=<value>;
-            var match = Regex.Match(cookie, @"XSRF-TOKEN=([^;]+)");
+            var match = MyRegex().Match(cookie);
             if (match.Success)
                 return match.Groups[1].Value;
         }
@@ -51,13 +45,9 @@ public abstract class TestBase : IClassFixture<CustomWebApplicationFactory>
     /// Extract a specific cookie's raw Set-Cookie header line.
     /// Used for inspecting cookie flags (HttpOnly, Secure, SameSite).
     /// </summary>
-    protected static string? ExtractSetCookieHeader(HttpResponseMessage response, string cookieName)
-    {
-        if (!response.Headers.TryGetValues("Set-Cookie", out var cookies))
-            return null;
-
-        return cookies.FirstOrDefault(c => c.StartsWith($"{cookieName}="));
-    }
+    protected static string? ExtractSetCookieHeader(HttpResponseMessage response, string cookieName) => !response.Headers.TryGetValues("Set-Cookie", out var cookies)
+            ? null
+            : cookies.FirstOrDefault(c => c.StartsWith($"{cookieName}=", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Perform a full login flow:
@@ -65,14 +55,14 @@ public abstract class TestBase : IClassFixture<CustomWebApplicationFactory>
     /// 2. POST /api/auth/login with credentials + XSRF header
     /// 3. Returns the login response (cookies are in the container)
     /// </summary>
-    protected async Task<HttpResponseMessage> LoginAsync(
+    protected static async Task<HttpResponseMessage> LoginAsync(
         HttpClient client,
         string email = "test@test.com",
         string password = "Password123!")
     {
         // Step 1: Bootstrap — get initial XSRF tokens
         var bootstrapResponse = await client.GetAsync("/health");
-        var initialXsrf = ExtractXsrfToken(bootstrapResponse);
+        string? initialXsrf = ExtractXsrfToken(bootstrapResponse);
 
         // Step 2: Login with XSRF header
         var loginRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
@@ -93,7 +83,10 @@ public abstract class TestBase : IClassFixture<CustomWebApplicationFactory>
     /// </summary>
     protected static async Task<string> GetResponseBodyForDebug(HttpResponseMessage response)
     {
-        var body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync();
         return $"Status: {response.StatusCode} ({(int)response.StatusCode})\nBody: {body}";
     }
+
+    [GeneratedRegex(@"XSRF-TOKEN=([^;]+)")]
+    private static partial Regex MyRegex();
 }

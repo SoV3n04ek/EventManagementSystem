@@ -1,7 +1,5 @@
-﻿namespace EventManagement.Application.Exceptions
+﻿namespace EventManagement.Application.Exceptions;
+
+public class ConflictException(string message) : Exception(message)
 {
-    public class ConflictException : Exception
-    {
-        public ConflictException(string message) : base(message) { }
-    }
 }

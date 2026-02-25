@@ -6,70 +6,63 @@ using EventManagement.Domain.Entities;
 using EventManagement.Domain.Interfaces.Security;
 using EventManagement.Infrastructure.Interfaces;
 
-namespace EventManagement.Application.Services
+namespace EventManagement.Application.Services;
+
+public class UserService(
+    IUserRepository userRepository,
+    IPasswordHasher passwordHasher,
+    ITokenService tokenService
+    ) : IUserService
 {
-    public class UserService : IUserService
+    readonly IUserRepository userRepository = userRepository;
+    readonly IPasswordHasher passwordHasher = passwordHasher;
+    readonly ITokenService tokenService = tokenService;
+
+    public async Task<UserDetailDto> GetUserByIdAsync(int userId)
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IPasswordHasher _passwordHasher;
-        private readonly ITokenService _tokenService;
+        var user = await userRepository.GetByIdAsync(userId)
+            ?? throw new NotFoundException($"User with id {userId} not found");
 
-        public UserService(
-            IUserRepository userRepository,
-            IPasswordHasher passwordHasher,
-            ITokenService tokenService
-        ) {
-            _userRepository = userRepository;
-            _passwordHasher = passwordHasher;
-            _tokenService = tokenService;
-        }
+        return user.ToUserDetailDto();
+    }
 
-        public async Task<UserDetailDto> GetUserByIdAsync(int userId)
+    public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
+    {
+        var user = await userRepository.GetByEmailAsync(loginDto.Email);
+
+        if (user == null || !passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
         {
-            var user = await _userRepository.GetByIdAsync(userId)
-                ?? throw new NotFoundException($"User with id {userId} not found");
-
-            return user.ToUserDetailDto();
+            throw new BadRequestException("Invalid email or password");
         }
 
-        public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
+        string token = tokenService.GenerateToken(user);
+
+        return new AuthResponseDto
         {
-            var user = await _userRepository.GetByEmailAsync(loginDto.Email);
-           
-            if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
-            {
-                throw new BadRequestException("Invalid email or password");
-            }
+            Token = token,
+            User = user.ToUserDto()
+        };
+    }
 
-            var token = _tokenService.GenerateToken(user);
-
-            return new AuthResponseDto
-            {
-                Token = token,
-                User = user.ToUserDto()
-            };
-        }
-
-        public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
+    public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
+    {
+        if (await userRepository.GetByEmailAsync(registerDto.Email) != null)
         {
-            if (await _userRepository.GetByEmailAsync(registerDto.Email) != null)
-            {
-                throw new ConflictException("User with this email already existed");
-            }
-
-            var user = new User
-            {
-                Name = registerDto.Name,
-                Email = registerDto.Email.ToLower(),
-                PasswordHash = _passwordHasher.HashPassword(registerDto.Password),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _userRepository.AddAsync(user);
-            await _userRepository.SaveChangesAsync();
-
-            return user.ToUserDto();
+            throw new ConflictException("User with this email already existed");
         }
+
+        var user = new User
+        {
+            Name = registerDto.Name,
+            Email = registerDto.Email.ToLowerInvariant(),
+            PasswordHash = passwordHasher.HashPassword(registerDto.Password),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await userRepository.AddAsync(user);
+        await userRepository.SaveChangesAsync();
+
+        return user.ToUserDto();
     }
 }

@@ -1,10 +1,9 @@
-﻿namespace EventManagement.Domain.Interfaces.Security
+﻿namespace EventManagement.Domain.Interfaces.Security;
+
+public interface ICurrentUserService
 {
-    public interface ICurrentUserService
-    {
-        int? UserId { get; }
-        string? Email { get; }
-        string? Name { get; }
-        bool IsAuthenticated { get; }
-    }
+    int? UserId { get; }
+    string? Email { get; }
+    string? Name { get; }
+    bool IsAuthenticated { get; }
 }

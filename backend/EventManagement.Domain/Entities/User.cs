@@ -22,7 +22,7 @@ public class User
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
-    public ICollection<Event> OrganizedEvents { get; set; } = new List<Event>();
-    public ICollection<Participant> Participations { get; set; } = new List<Participant>();
+    public ICollection<Event> OrganizedEvents { get; set; } = [];
+    public ICollection<Participant> Participations { get; set; } = [];
 
 }

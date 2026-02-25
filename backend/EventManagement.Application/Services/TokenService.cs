@@ -1,50 +1,44 @@
-﻿using EventManagement.Application.Interfaces;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using EventManagement.Application.Interfaces;
 using EventManagement.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
-namespace EventManagement.Application.Services
+namespace EventManagement.Application.Services;
+
+public class TokenService(IConfiguration configuration) : ITokenService
 {
-    public class TokenService : ITokenService
+    readonly IConfiguration configuration = configuration;
+
+    public string GenerateToken(User user)
     {
-        private readonly IConfiguration _configuration;
-      
-        public TokenService(IConfiguration configuration) 
-        {  
-            _configuration = configuration;
-        }
+        var tokenHandler = new JwtSecurityTokenHandler();
+        byte[] key = Encoding.UTF8.GetBytes(configuration["Jwt:Key"]
+             ?? configuration["Jwt:Key"]
+             ?? throw new InvalidOperationException("JWT Key is not configured"));
 
-        public string GenerateToken(User user)
+        var claims = new[]
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]
-                 ?? _configuration["Jwt:Key"]
-                 ?? throw new InvalidOperationException("JWT Key is not configured"));
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.Email, user.Email)
+        };
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Name),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddHours(
+                Convert.ToDouble(configuration["Jwt:ExpireHours"] ?? "24", System.Globalization.CultureInfo.InvariantCulture)),
+            Issuer = configuration["Jwt:Issuer"],
+            Audience = configuration["Jwt:Audience"],
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha256Signature)
+        };
 
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(
-                    Convert.ToDouble(_configuration["Jwt:ExpireHours"] ?? "24")),
-                Issuer = _configuration["Jwt:Issuer"],
-                Audience = _configuration["Jwt:Audience"],
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256Signature)
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
-        }
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
     }
 }
