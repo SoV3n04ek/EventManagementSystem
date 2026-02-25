@@ -1,0 +1,51 @@
+name: .NET Core CLI 
+
+on: # Triggers for the workflow
+  push:
+    branches: [ "master" ] # runs whenever code hits the branch
+  pull_request:
+    branches: [ "master" ] # runs whenever code is pushed to the branch
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      reason:
+        description: 'Reason for running the workflow'
+        required: true
+        default: 'Manual trigger'
+
+env:
+  # Define your .env variables here so both Build and Test can see them
+  DB_CONNECTION: ${{ secrets.DB_CONNECTION }}
+  API_KEY: ${{ secrets.API_KEY }}
+  ASPNETCORE_ENVIRONMENT: ${{ secrets.ASPNETCORE_ENVIRONMENT }}
+  
+jobs:
+  build-and-test: # The Job
+    runs-on: ubuntu-latest # The Runner
+  
+    steps:
+      - name: Checkout code # Downloads the repository code
+        uses: actions/checkout@v4
+      
+      - name: Install curl in runner
+        run: sudo apt-get update && sudo apt-get install -y curl
+
+      - name: Setup .NET # Installs the .Net SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: backend/EventManagement.Api/EventManagement.Api.csproj
+      
+      - name: Restore dependencies # Restores the dependencies
+        run: dotnet restore backend/EventManagement.Api/EventManagement.Api.csproj
+
+      - name: Build # Builds the project
+        run: dotnet build backend/EventManagement.Api/EventManagement.Api.csproj --no-restore
+      
+      - name: Test # Runs the unit tests
+        run: dotnet test backend/EventManagement.UnitTests/EventManagement.UnitTests.csproj --configuration Release --no-build --verbosity normal
+
+      - name: Build Docker Image
+        # This simulates Dockerfile build to ensure it's valid
+        run: |
+          docker build -t event-management-api:latest -f backend/EventManagement.Api/Dockerfile .

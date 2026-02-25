@@ -6,6 +6,8 @@
 
 The **Event Management System** is a technical showcase for building scalable, secure, and modern web applications. Designed for public meetups—ranging from IT conferences and business knowledge-sharing sessions to marathons and music concerts—the platform prioritizes data integrity and security through a hardened infrastructure.
 
+Demo link: https://frontend-eventmanagement-production.up.railway.app/events
+
 ---
 
 ## 🛠️ Technology Stack
@@ -71,6 +73,16 @@ Edit Event Interface
 <p align="center">
 <img src="assets/screenshots/edit-event-modal.jpg" width="800" alt="Edit Event Modal">
 </p>
+
+## 📸 Showcase
+
+* **Events Discovery:** A responsive grid of upcoming public meetups.
+* **My Events:** A personalized calendar (Monthly/Weekly views) for tracking joined sessions.
+* **Organizer Portal:** Secure form for creating and managing event logistics.
+* **Auth Suite:** Hardened Sign-up and Login portals with real-time validation.
+
+---
+
 ## 🏗️ Technical Architecture
 
 This project follows **Clean Architecture** principles to ensure that business logic remains independent of external frameworks.
@@ -124,17 +136,6 @@ sequenceDiagram
 
 ---
 
-## 📸 Showcase
-
-> **Note:** Screenshots coming soon!
-
-* **Events Discovery:** A responsive grid of upcoming public meetups.
-* **My Events:** A personalized calendar (Monthly/Weekly views) for tracking joined sessions.
-* **Organizer Portal:** Secure form for creating and managing event logistics.
-* **Auth Suite:** Hardened Sign-up and Login portals with real-time validation.
-
----
-
 ## 🛣️ Roadmap & Future Optimizations
 
 * [ ] **Database Concurrency:** Implement explicit Row Locking (`FOR UPDATE`) for event joining to handle high-concurrency race conditions.
@@ -142,3 +143,98 @@ sequenceDiagram
 * [ ] **PWA Support:** Enable offline calendar viewing for event participants.
 
 ---
+
+## Backend Architecture Overview
+The backend of the Event Management System follows a Clean Architecture (also known as Onion Architecture) pattern. This approach ensures high maintainability, testability, and a clear separation of concerns by organzing the codebase into logical layers.
+
+Backend Architecture Diagram
+The following diagram illustrates the different layers of the application and how they interact with each other.
+
+```mermaid
+graph TB
+    subgraph ClientLayer ["Client Layer (Frontend)"]
+        Angular["Angular SPA"]
+    end
+    subgraph PresentationLayer ["Presentation Layer (EventManagement.Api)"]
+        direction TB
+        Controllers["Controllers (REST Endpoints)"]
+        Middleware["Middleware (Auth, XSRF, CSP, Error Handling)"]
+        Filters["Global Filters (XSRF Validation)"]
+        Swagger["Swagger / OpenAPI Docs"]
+    end
+    subgraph ApplicationLayer ["Application Layer (EventManagement.Application)"]
+        direction TB
+        Services["Application Services (Business Logic)"]
+        DTOs["DTOs & AutoMapper"]
+        Validators["FluentValidation"]
+        AppInterfaces["Core Interfaces"]
+    end
+    subgraph DomainLayer ["Domain Layer (EventManagement.Domain)"]
+        direction TB
+        Entities["Domain Entities"]
+        DomainInterfaces["Repository / Security Interfaces"]
+    end
+    subgraph InfrastructureLayer ["Infrastructure Layer (EventManagement.Infrastructure)"]
+        direction TB
+        Persistence["EF Core (PostgreSQL)"]
+        Repos["Repository Implementations"]
+        SecurityImpl["Security (JWT, Password Hashing)"]
+    end
+    subgraph ExternalSystems ["External Systems"]
+        DB[("PostgreSQL Database")]
+    end
+    %% Interaction Flow
+    Angular -- "HTTPS (JWT + XSRF)" --> Middleware
+    Middleware --> Controllers
+    Controllers --> Services
+    Services --> Repos
+    Repos --> Persistence
+    Persistence --> DB
+    %% Clean Architecture Dependency Direction
+    PresentationLayer -- "Depends on" --> ApplicationLayer
+    ApplicationLayer -- "Depends on" --> DomainLayer
+    InfrastructureLayer -- "Implements" --> DomainLayer
+    InfrastructureLayer -- "Depends on" --> DomainLayer
+```
+
+Architectural Breakdown
+## 1. Presentation Layer (EventManagement.Api)
+This is the entry point for the application. It handles HTTP requests and provides responses.
+
+Controllers: Define the RESTful API endpoints.
+
+Middleware: A robust pipeline for cross-cutting concerns:
+
+Authentication: JWT validation with cookie fallback.
+
+Security: Content Security Policy (CSP), XSRF protection, and Secure Headers.
+
+Error Handling: Global exception handling.
+
+Dependency Injection: Orchestrates the wiring of services and repositories.
+## 2. Application Layer (EventManagement.Application)
+Contains the business logic of the application. It acts as an orchestrator between the API and the Domain.
+
+Services: Implement the use cases (e.g., EventService, UserService).
+DTOs: Ensure data is shaped appropriately for the client, hiding internal domain details.
+
+Validators: Use FluentValidation to ensure incoming data is correct before processing.
+## 3. Domain Layer (EventManagement.Domain)
+The core of the system. It contains the data models and fundamental business rules that are independent of technology layers.
+
+## Entities: Core objects like Event, User, and Participant.
+Interfaces: Define the "contracts" for data access (repositories) and security services, implementing the Dependency Inversion Principle.
+## 4. Infrastructure Layer (EventManagement.Infrastructure)
+Handles technical details and communication with external systems.
+
+Persistence: Managed by Entity Framework Core for interaction with PostgreSQL.
+
+Security: Implementation of JWT token generation and password hashing.
+
+Repository Pattern: Concrete implementations of the interfaces defined in the Domain layer.
+## Key Security Features
+Identity-Aware: Uses Microsoft Identity concepts with JWT Bearer tokens.
+
+Double-Token XSRF: Implements Antiforgery protection to prevent Cross-Site Request Forgery.
+
+Defense in Depth: Combines CSP headers, HttpOnly cookies, and strict CORS policies.
